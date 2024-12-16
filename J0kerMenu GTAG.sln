@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34330.188
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "J0kerMenu GTAG", "J0kerMenu GTAG\J0kerMenu GTAG.csproj", "{886AAD7C-4116-4EC6-B56A-091655DE9BB8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{886AAD7C-4116-4EC6-B56A-091655DE9BB8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{886AAD7C-4116-4EC6-B56A-091655DE9BB8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{886AAD7C-4116-4EC6-B56A-091655DE9BB8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{886AAD7C-4116-4EC6-B56A-091655DE9BB8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8B894615-435E-4CA0-B1B2-377F61AB6052}
+	EndGlobalSection
+EndGlobal
