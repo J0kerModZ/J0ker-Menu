@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using HarmonyLib;
-using GorillaNetworking;
-using Photon.Pun;
-using ExitGames.Client.Photon;
-using Photon.Realtime;
+using System.Collections;
+using UnityEngine.Networking;
 
 namespace J0kerMenu_GTAG
 {
@@ -15,12 +13,16 @@ namespace J0kerMenu_GTAG
     {
         #region Shader/Text
         static Shader MenuShader = Shader.Find("GorillaTag/UberShader");
-        static TMP_FontAsset Font = GameObject.Find("Environment Objects/LocalObjects_Prefab/TreeRoom/motdtext").GetComponent<TextMeshPro>().font;
+        public static TMP_FontAsset Font = GameObject.Find("Environment Objects/LocalObjects_Prefab/TreeRoom/motdtext").GetComponent<TextMeshPro>().font;
         #endregion
 
         #region Menu Var
-        static GameObject MenuPrefab, MenuPointer;
+        static GameObject MenuPrefab, MenuPointer, textObject;
+        static TextMeshPro textMesh;
         static bool MenuActive = false;
+        static string Catagory;
+        static string[] categories = { "Player", "Rig", "Tag", "Water", "Sounds", "Party", "City", "Guardian", "Projectile", "Projectile", "Elf", "Impact", "Freeze Tag", "Blocks", "PaintBrawl", "Mode", "Info", "Name", "ESP", "Misc" };
+        static string checkMenuVersion = ""; // Prevents You From Having A Outdated Menu
         #endregion
 
         #region Buttons Var
@@ -28,16 +30,16 @@ namespace J0kerMenu_GTAG
         {
             "Fly [B]",
             "Platforms",
-            "Player ESP",
+            "UnCap Velocity",
             "No Tag Freeze",
             "Ghost Monkey [B]",
             "Invis Monkey [B]",
             "TP Gun",
             "Rig Gun",
-            "Tag All",
+            "Tag All [T]",
             "Tag Aura",
             "Tag Gun",
-            "Tag Self",
+            "Tag Self [T]",
             "Water Spam Hands [G]",
             "Water Spam Body [T]",
             "Water Spam Head [T]",
@@ -53,39 +55,39 @@ namespace J0kerMenu_GTAG
             "Fortune Teller Spaz [G] [M]",
             "Basement Door Spam [G]",
             "Cosmetic Spam [G] [Try On]",
-            "Join Random Public",
-            "Grab All [G] [Guardian]",
-            "Drop All [G] [Guardian]",
-            "Fling All [G] [Guardian]",
-            "Get Guardian [Guardian]",
+            "Add Random [Try On]",
+            "Grab All [G]",
+            "Drop All [G]",
+            "Fling All [G]",
+            "Get Guardian",
             "SnowBall Launcher [G]",
             "WaterBalloon Launcher [G]",
             "Halloween Candy Launcher [G]",
-            "Lava Rock Launcher [G]",
+            "Fish Food Launcher [G]",
             "Vote Rock Launcher [G]",
             "Apple Launcher [G]",
             "Mento Launcher [G]",
             "Gift Launcher [G]",
-            "Fish Food Launcher [G]",
-            "Elf Launcher [Cosmetic] [G]",
-            "Elf Explosion [Cosmetic] [G]",
-            "Elf Rain [Cosmetic] [G]",
+            "Elf Mini Gun [Cosmetic] [G]",
+            "Elf Launcher [Try On] [G]",
+            "Elf Explosion [Try On] [G]",
+            "Elf Rain [Try On] [G]",
             "Impact Spam [G]",
             "Impact Others [G]",
             "Impact Aura [G]",
             "Impact Gun",
-            "Freeze All [Freeze Tag] [M]",
-            "Freeze Gun [Freeze Tag] [M]",
-            "Freeze Self [Freeze Tag] [M]",
-            "UnFreeze Self [Freeze Tag] [M]",
+            "Freeze All [T]",
+            "Un Freeze All [T]",
+            "Freeze Gun",
+            "Freeze Self [T]",
             "Big Block Spammer [T]",
             "Block Spammer [T]",
             "Block Spammer [T] [XMAS]",
             "Block Launcher [G] [M]",
-            "Auto Fire [G] [Paintbrawl]",
-            "Aimbot [G] [Paintbrawl]",
-            "Revive [M] [Paintbrawl]",
-            "Kill All [M] [Paintbrawl]",
+            "Auto Fire [G]",
+            "Aimbot [G]",
+            "Revive [M]",
+            "Kill All [M]",
             "Set Mode [Paintbrawl]",
             "Set Mode [Ambush]",
             "Set Mode [Ghost]",
@@ -94,7 +96,16 @@ namespace J0kerMenu_GTAG
             "Get Block Info",
             "Get Sound Info",
             "Get RPC Info",
+            "Set Name [No Name]",
+            "Set Name [J0kerMenu]",
+            "Set Name [Random]",
+            "Set Name [Custom] [GUI]",
+            "Player ESP",
+            "Bone ESP",
+            "NameTag ESP",
+            "Box ESP",
             "Player Info [Name Tag]",
+            "Allow Tracers [ESP]",
             "Anti Report"
         };
         public static List<bool> buttonFlags = new List<bool>();
@@ -116,13 +127,23 @@ namespace J0kerMenu_GTAG
 
         public void Update()
         {
-            if (ControllerInputPoller.instance.leftControllerSecondaryButton)
+            if (checkMenuVersion == "")
             {
-                MenuActive = true;
+                StartCoroutine(CheckVersion());
+                StartCoroutine(CheckLockDown());
             }
-            else
+
+            if (checkMenuVersion == "Done")
             {
-                MenuActive = false;
+                if (ControllerInputPoller.instance.leftControllerSecondaryButton)
+                {
+
+                    MenuActive = true;
+                }
+                else
+                {
+                    MenuActive = false;
+                }
             }
 
             MenuPrefab.SetActive(MenuActive);
@@ -135,6 +156,8 @@ namespace J0kerMenu_GTAG
             MenuPrefab.transform.localRotation = Quaternion.Euler(-90f, 180f, 0f);
 
             ButtonsActive();
+            CatagoryHanlder();
+            MenuNameHandler();
 
             if (MenuActive && ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
             {
@@ -179,7 +202,7 @@ namespace J0kerMenu_GTAG
 
             if (buttonFlags[1]) Mods.Platforms();
 
-            if (buttonFlags[2]) Mods.PlayerESP(); else Mods.DisableESP();
+            if (buttonFlags[2]) Mods.UnCapVelocity(); else Mods.ReCapVelocity();
 
             if (buttonFlags[3]) Mods.NoTagFreeze();
 
@@ -229,7 +252,7 @@ namespace J0kerMenu_GTAG
 
             if (buttonFlags[26]) Mods.CosmeticSpam();
 
-            if (buttonFlags[27]) PhotonNetwork.JoinRandomRoom(); buttonFlags[27] = false;
+            if (buttonFlags[27]) Mods.AddRandomToCart(); buttonFlags[27] = false;
 
             if (buttonFlags[28]) Mods.GrabAll(); buttonFlags[28] = false;
 
@@ -245,7 +268,7 @@ namespace J0kerMenu_GTAG
 
             if (buttonFlags[34]) Mods.HalloweenCandyGun();
 
-            if (buttonFlags[35]) Mods.LavaRockGun();
+            if (buttonFlags[35]) Mods.FishFoodGun();
 
             if (buttonFlags[36]) Mods.VoteRockGun();
 
@@ -255,11 +278,11 @@ namespace J0kerMenu_GTAG
 
             if (buttonFlags[39]) Mods.GiftGun();
 
-            if (buttonFlags[40]) Mods.FishFoodGun();
+            if (buttonFlags[40]) Mods.ElfMiniGun();
 
             if (buttonFlags[41]) Mods.LaunchElf();
 
-            if (buttonFlags[42]) Mods.LaunchElfSpaz();
+            if (buttonFlags[42]) Mods.ElfExplode();
 
             if (buttonFlags[43]) Mods.LaunchElfRain();
 
@@ -271,13 +294,13 @@ namespace J0kerMenu_GTAG
 
             if (buttonFlags[47]) Mods.ImpactGun();
 
-            if (buttonFlags[48]) Mods.FreezeAll(); buttonFlags[48] = false;
+            if (buttonFlags[48]) Mods.FreezeAll();
 
-            if (buttonFlags[49]) Mods.FreezeTagGun();
+            if (buttonFlags[49]) Mods.UnFreezeAll();
 
-            if (buttonFlags[50]) Mods.FreezeSelf(); buttonFlags[50] = false;
+            if (buttonFlags[50]) Mods.FreezeTagGun();
 
-            if (buttonFlags[51]) Mods.UnFreezeSelf(); buttonFlags[51] = false;
+            if (buttonFlags[51]) Mods.FreezeSelf();
 
             if (buttonFlags[52]) Mods.BigBlockSpammer();
 
@@ -311,9 +334,27 @@ namespace J0kerMenu_GTAG
 
             if (buttonFlags[67]) Mods.GrabAllRPCS(); buttonFlags[67] = false;
 
-            if (buttonFlags[68]) Mods.ViewAllDates(); buttonFlags[68] = false;
+            if (buttonFlags[68]) Mods.SetName("ㅤ", false); buttonFlags[68] = false;
 
-            if (buttonFlags[69]) Mods.AntiReport(); 
+            if (buttonFlags[69]) Mods.SetName("J0kerMenu", false); buttonFlags[69] = false;
+
+            if (buttonFlags[70]) Mods.SetName("", true); buttonFlags[70] = false;
+
+            if (buttonFlags[71]) Mods.SetName(customName, false);
+            
+            if (buttonFlags[72]) Mods.PlayerESP(); else Mods.disablePlayerESP();
+
+            if (buttonFlags[73]) Mods.BoneESP(); else Mods.disableBoneESP();
+
+            if (buttonFlags[74]) Mods.NameTagESP(); else Mods.disableNameTagESP();
+
+            if (buttonFlags[75]) Mods.BoxESP(); else Mods.disableBoxESP();
+
+            if (buttonFlags[76]) Mods.ViewAllDates(); buttonFlags[76] = false;
+
+            if (buttonFlags[77]) Mods.EnableTracers(); else Mods.DisableTracers();
+
+            if (buttonFlags[78]) Mods.AntiReport();
         }
 
         static void Panel()
@@ -325,20 +366,8 @@ namespace J0kerMenu_GTAG
             MenuPrefab.GetComponent<Renderer>().material.shader = MenuShader;
             MenuPrefab.GetComponent<Renderer>().material.color = Color.black;
 
-            GameObject textObject = new GameObject("MenuText");
-            TextMeshPro textMesh = textObject.AddComponent<TextMeshPro>();
-
-            textMesh.text = "J0ker Menu\n====================";
-            textMesh.fontSize = 8;
-            textMesh.font = Font;
-            textMesh.color = Color.white;
-            textMesh.fontStyle = FontStyles.Italic;
-            textMesh.alignment = TextAlignmentOptions.Center;
-
-            textObject.transform.SetParent(MenuPrefab.transform);
-            textObject.transform.localPosition = new Vector3(-0.6f, 0.40f, 0f);
-            textObject.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
-            textObject.transform.localScale = Vector3.one * 0.1f;
+            textObject = new GameObject("MenuText");
+            textMesh = textObject.AddComponent<TextMeshPro>();
 
             CreateButtons(buttonTexts.Count);
         }
@@ -440,6 +469,110 @@ namespace J0kerMenu_GTAG
                 UpdateButtonVisibility();
             }
         }
+
+        static void CatagoryHanlder()
+        {
+            if (currentPage >= 0 && currentPage < categories.Length)
+            {
+                Catagory = categories[currentPage];
+            }
+        }
+
+        static void MenuNameHandler()
+        {
+            textMesh.text = $"<size=6>J0ker Menu: {Catagory}</size>\n====================";
+            textMesh.fontSize = 8;
+            textMesh.font = Font;
+            textMesh.color = Color.white;
+            textMesh.fontStyle = FontStyles.Italic;
+            textMesh.alignment = TextAlignmentOptions.Center;
+
+            textObject.transform.SetParent(MenuPrefab.transform);
+            textObject.transform.localPosition = new Vector3(-0.6f, 0.40f, 0f);
+            textObject.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+            textObject.transform.localScale = Vector3.one * 0.1f;
+        }
+
+        #region Version Checker
+        private string lockDownURL = "https://pastebin.com/raw/pxqcgumS";
+        private string versionUrl = "https://pastebin.com/raw/HC97dXU1";
+        private string expectedVersion = "1.0.0";
+        private string shouldLockDown = "Safe";
+
+        private IEnumerator CheckVersion()
+        {
+            UnityWebRequest request = UnityWebRequest.Get(versionUrl);
+
+            yield return request.SendWebRequest();
+
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                string latestVersion = request.downloadHandler.text.Trim();
+
+                if (latestVersion == expectedVersion)
+                {
+                    checkMenuVersion = "Done";
+                }
+                else
+                {
+                    checkMenuVersion = "OutDated";
+
+                    GameObject.Find("motd (1)").GetComponent<TextMeshPro>().text = "<color=red>OUTDATED!</color>";
+
+                    TextMeshPro motdText = GameObject.Find("motdtext").GetComponent<TextMeshPro>();
+                    motdText.text = "<color=red>THIS MENU IS OUT DATED PLEASE UPDATE THE MENU!</color>\n<size=150>j0kermodz.lol</size>";
+                    motdText.alignment = TextAlignmentOptions.Center;
+                    motdText.verticalAlignment = VerticalAlignmentOptions.Top;
+                }
+            }
+        }
+
+        private IEnumerator CheckLockDown()
+        {
+            UnityWebRequest request = UnityWebRequest.Get(lockDownURL);
+
+            yield return request.SendWebRequest();
+
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                string latestShouldLock = request.downloadHandler.text.Trim();
+
+                if (latestShouldLock == shouldLockDown)
+                {
+                    checkMenuVersion = "Done";
+                }
+                else
+                {
+                    checkMenuVersion = "LOCKED";
+
+                    GameObject.Find("motd (1)").GetComponent<TextMeshPro>().text = "<color=red>LOCKED DOWN!</color>";
+
+                    TextMeshPro motdText = GameObject.Find("motdtext").GetComponent<TextMeshPro>();
+                    motdText.text = "<color=red>THIS MENU IS LOCKED AS A MOD OR MENU GOT DETECTED!</color>\n<size=150>MORE INFO:\nj0kermodz.lol</size>";
+                    motdText.alignment = TextAlignmentOptions.Center;
+                    motdText.verticalAlignment = VerticalAlignmentOptions.Top;
+                }
+            }
+        }
+        #endregion
+
+        #region Name GUI
+        public static string customName;
+
+        public void OnGUI()
+        {
+            if (!buttonFlags[71]) return;
+
+            customName = GUILayout.TextArea(customName, GUILayout.Height(20));
+
+            if (GUILayout.Button("Set Name", GUILayout.Height(20)))
+            {
+                Mods.SetName(customName, false);
+                buttonFlags[71] = false;
+            }
+        }
+
+        #endregion
     }
 
     public class ButtonTrigger : MonoBehaviour

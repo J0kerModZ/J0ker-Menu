@@ -1,8 +1,6 @@
 C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\J0kerMenu GTAG.dll
 C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\J0kerMenu GTAG.pdb
-C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\0Harmony.dll
 C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\Assembly-CSharp.dll
-C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\BepInEx.dll
 C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\Fusion.Realtime.dll
 C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\Photon3Unity3D.dll
 C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\PhotonUnityNetworking.dll
@@ -150,3 +148,5 @@ C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\obj\Debug\J0kerMe
 C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\obj\Debug\J0kerMenu GTAG.csproj.CopyComplete
 C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\obj\Debug\J0kerMenu GTAG.dll
 C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\obj\Debug\J0kerMenu GTAG.pdb
+C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\0Harmony.dll
+C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\BepInEx.dll

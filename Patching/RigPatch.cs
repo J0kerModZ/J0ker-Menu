@@ -7,11 +7,7 @@ namespace J0kerMenu_GTAG.Patching
     {
         public static bool Prefix(VRRig __instance)
         {
-            if (__instance == GorillaTagger.Instance.offlineVRRig)
-            {
-                return false;
-            }
-            return true;
+            return !(__instance == GorillaTagger.Instance.offlineVRRig);
         }
     }
 }
