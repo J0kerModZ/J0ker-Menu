@@ -1214,7 +1214,7 @@ namespace J0kerMenu_GTAG.Menu
             }
             if (Time.time > projectileDelay)
             {
-                projectileDelay = Time.time + 0.05f;
+                projectileDelay = Time.time + 0.2f; // Had to revert this =(
 
                 Rigidbody gorillaRigidbody = GorillaTagger.Instance.GetComponent<Rigidbody>();
                 Vector3 originalVelocity = gorillaRigidbody.velocity;

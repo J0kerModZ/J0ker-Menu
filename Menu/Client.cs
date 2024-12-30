@@ -553,7 +553,7 @@ namespace J0kerMenu_GTAG
         #region Version Checker
         private string lockDownURL = "https://pastebin.com/raw/pxqcgumS";
         private string versionUrl = "https://pastebin.com/raw/HC97dXU1";
-        private string expectedVersion = "1.0.0";
+        private string expectedVersion = "1.0.1";
         private string shouldLockDown = "Safe";
 
         private IEnumerator CheckVersion()
