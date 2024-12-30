@@ -150,3 +150,4 @@ C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\obj\Debug\J0kerMe
 C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\obj\Debug\J0kerMenu GTAG.pdb
 C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\0Harmony.dll
 C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\BepInEx.dll
+C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\Oculus.Interaction.dll

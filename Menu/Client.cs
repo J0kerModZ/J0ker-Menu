@@ -5,6 +5,8 @@ using UnityEngine;
 using HarmonyLib;
 using System.Collections;
 using UnityEngine.Networking;
+using BepInEx;
+using UnityEngine.InputSystem;
 
 namespace J0kerMenu_GTAG
 {
@@ -17,12 +19,14 @@ namespace J0kerMenu_GTAG
         #endregion
 
         #region Menu Var
-        static GameObject MenuPrefab, MenuPointer, textObject;
+        public static GameObject MenuPrefab, MenuPointer, textObject, spherePrefab;
+        public static SphereCollider pointerCollider;
         static TextMeshPro textMesh;
         static bool MenuActive = false;
         static string Catagory;
-        static string[] categories = { "Player", "Rig", "Tag", "Water", "Sounds", "Party", "City", "Guardian", "Projectile", "Projectile", "Elf", "Impact", "Freeze Tag", "Blocks", "PaintBrawl", "Mode", "Info", "Name", "ESP", "Misc" };
+        static string[] categories = { "Player", "Rig", "Tag", "Water", "Sounds", "Party", "City", "Guardian", "Projectile", "Projectile", "Impact", "Freeze Tag", "Blocks", "PaintBrawl", "Mode", "Info", "Name", "ESP", "Body", "Ropes", "Misc" };
         static string checkMenuVersion = ""; // Prevents You From Having A Outdated Menu
+        static bool PCMenu;
         #endregion
 
         #region Buttons Var
@@ -56,8 +60,8 @@ namespace J0kerMenu_GTAG
             "Basement Door Spam [G]",
             "Cosmetic Spam [G] [Try On]",
             "Add Random [Try On]",
-            "Grab All [G]",
-            "Drop All [G]",
+            "Grab All",
+            "Drop All",
             "Fling All [G]",
             "Get Guardian",
             "SnowBall Launcher [G]",
@@ -68,10 +72,6 @@ namespace J0kerMenu_GTAG
             "Apple Launcher [G]",
             "Mento Launcher [G]",
             "Gift Launcher [G]",
-            "Elf Mini Gun [Cosmetic] [G]",
-            "Elf Launcher [Try On] [G]",
-            "Elf Explosion [Try On] [G]",
-            "Elf Rain [Try On] [G]",
             "Impact Spam [G]",
             "Impact Others [G]",
             "Impact Aura [G]",
@@ -104,9 +104,19 @@ namespace J0kerMenu_GTAG
             "Bone ESP",
             "NameTag ESP",
             "Box ESP",
+            "No Head [CS]",
+            "Skeleton Body [CS]",
+            "Material Changer [CS]",
+            "Default Body [CS]",
+            "Ropes Up [G]",
+            "Rope Tweak [G]",
+            "Rope Spaz [G]",
+            "Fast Ropes",
             "Player Info [Name Tag]",
             "Allow Tracers [ESP]",
-            "Anti Report"
+            "Button Click Gun",
+            "Mute All [CS]",
+            "Anti Report",
         };
         public static List<bool> buttonFlags = new List<bool>();
         public static List<GameObject> ButtonObjects = new List<GameObject>();
@@ -125,6 +135,7 @@ namespace J0kerMenu_GTAG
             UpdateButtonVisibility();
         }
 
+        // I ADDED PC VIEW SUPPORT (THE CODE LOOKS LIKE SHIT NOW BUT IT WORKS!)
         public void Update()
         {
             if (checkMenuVersion == "")
@@ -137,34 +148,68 @@ namespace J0kerMenu_GTAG
             {
                 if (ControllerInputPoller.instance.leftControllerSecondaryButton)
                 {
-
                     MenuActive = true;
                 }
                 else
                 {
-                    MenuActive = false;
+                    if (!PCMenu)
+                    {
+                        MenuActive = false;
+                    }
+                }
+
+                if (UnityInput.Current.GetKey(KeyCode.Q))
+                {
+                    PCMenu = true;
+                    MenuActive = true;
+                }
+                else
+                {
+                    PCMenu = false;
                 }
             }
 
             MenuPrefab.SetActive(MenuActive);
             MenuPointer.SetActive(MenuActive);
 
-            Vector3 offset = new Vector3(0.1f, 0f, 0.1f);
-            MenuPrefab.transform.parent = GorillaLocomotion.Player.Instance.leftHandFollower;
+            if (!PCMenu)
+            {
+                MenuPrefab.transform.parent = GorillaLocomotion.Player.Instance.leftHandFollower;
+                Vector3 offset = new Vector3(0.1f, 0f, 0.1f);
+                MenuPrefab.transform.localPosition = offset;
+                MenuPrefab.transform.localRotation = Quaternion.Euler(-90f, 180f, 0f);
+            }
+            else
+            {
 
-            MenuPrefab.transform.localPosition = offset;
-            MenuPrefab.transform.localRotation = Quaternion.Euler(-90f, 180f, 0f);
+                MenuPrefab.transform.parent = null;
+                MenuPrefab.transform.position = new Vector3(0.22f, -0.01f, 0.21f);
+                MenuPrefab.transform.rotation = Quaternion.Euler(0f, 317.3493f, 0f);
+
+                GameObject cam = GameObject.Find("Shoulder Camera");
+
+                cam.transform.parent = null;
+                cam.GetComponent<Cinemachine.CinemachineBrain>().enabled = false;
+                cam.transform.position = Vector3.zero;
+                cam.transform.rotation = Quaternion.Euler(0f, 47f, 0f);
+            }
+
+            if (UnityInput.Current.GetKeyUp(KeyCode.Q))
+            {
+                GameObject.Find("Shoulder Camera").transform.parent = GameObject.Find("Third Person Camera").transform;
+                GameObject.Find("Shoulder Camera").GetComponent<Cinemachine.CinemachineBrain>().enabled = true;
+            }
 
             ButtonsActive();
             CatagoryHanlder();
             MenuNameHandler();
 
-            if (MenuActive && ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+            if (MenuActive && ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetMouseButton(4))
             {
                 NextPage();
             }
 
-            if (MenuActive && ControllerInputPoller.instance.leftControllerIndexFloat > 0.1f)
+            if (MenuActive && ControllerInputPoller.instance.leftControllerIndexFloat > 0.1f || UnityInput.Current.GetMouseButton(3))
             {
                 BackPage();
             }
@@ -278,83 +323,95 @@ namespace J0kerMenu_GTAG
 
             if (buttonFlags[39]) Mods.GiftGun();
 
-            if (buttonFlags[40]) Mods.ElfMiniGun();
+            if (buttonFlags[40]) Mods.ImpactSpam();
 
-            if (buttonFlags[41]) Mods.LaunchElf();
+            if (buttonFlags[41]) Mods.ImpactOthers();
 
-            if (buttonFlags[42]) Mods.ElfExplode();
+            if (buttonFlags[42]) Mods.ImpactAura();
 
-            if (buttonFlags[43]) Mods.LaunchElfRain();
+            if (buttonFlags[43]) Mods.ImpactGun();
 
-            if (buttonFlags[44]) Mods.ImpactSpam();
+            if (buttonFlags[44]) Mods.FreezeAll();
 
-            if (buttonFlags[45]) Mods.ImpactOthers();
+            if (buttonFlags[45]) Mods.UnFreezeAll();
 
-            if (buttonFlags[46]) Mods.ImpactAura();
+            if (buttonFlags[46]) Mods.FreezeTagGun();
 
-            if (buttonFlags[47]) Mods.ImpactGun();
+            if (buttonFlags[47]) Mods.FreezeSelf();
 
-            if (buttonFlags[48]) Mods.FreezeAll();
+            if (buttonFlags[48]) Mods.BigBlockSpammer();
 
-            if (buttonFlags[49]) Mods.UnFreezeAll();
+            if (buttonFlags[49]) Mods.BlockSpammer();
 
-            if (buttonFlags[50]) Mods.FreezeTagGun();
+            if (buttonFlags[50]) Mods.XmasBlockSpammer();
 
-            if (buttonFlags[51]) Mods.FreezeSelf();
+            if (buttonFlags[51]) Mods.BlockLauncher();
 
-            if (buttonFlags[52]) Mods.BigBlockSpammer();
+            if (buttonFlags[52]) Mods.AutoFire();
 
-            if (buttonFlags[53]) Mods.BlockSpammer();
+            if (buttonFlags[53]) Mods.Aimbot();
 
-            if (buttonFlags[54]) Mods.XmasBlockSpammer();
+            if (buttonFlags[54]) Mods.Revive(); buttonFlags[54] = false;
 
-            if (buttonFlags[55]) Mods.BlockLauncher();
+            if (buttonFlags[55]) Mods.KillAll(); buttonFlags[55] = false;
 
-            if (buttonFlags[56]) Mods.AutoFire();
+            if (buttonFlags[56]) Mods.SetMode("Paintbrawl"); buttonFlags[56] = false;
 
-            if (buttonFlags[57]) Mods.Aimbot();
+            if (buttonFlags[57]) Mods.SetMode("Ambush"); buttonFlags[57] = false;
 
-            if (buttonFlags[58]) Mods.Revive(); buttonFlags[58] = false;
+            if (buttonFlags[58]) Mods.SetMode("Ghost"); buttonFlags[58] = false;
 
-            if (buttonFlags[59]) Mods.KillAll(); buttonFlags[59] = false;
+            if (buttonFlags[59]) Mods.SetMode("Hunt"); buttonFlags[59] = false;
 
-            if (buttonFlags[60]) Mods.SetMode("Paintbrawl"); buttonFlags[60] = false;
+            if (buttonFlags[60]) Mods.GrabAllIDS(); buttonFlags[60] = false;
 
-            if (buttonFlags[61]) Mods.SetMode("Ambush"); buttonFlags[61] = false;
+            if (buttonFlags[61]) Mods.GrabAllBlockIDS(); buttonFlags[61] = false;
 
-            if (buttonFlags[62]) Mods.SetMode("Ghost"); buttonFlags[62] = false;
+            if (buttonFlags[62]) Mods.GrabAllSoundIDS(); buttonFlags[62] = false;
 
-            if (buttonFlags[63]) Mods.SetMode("Hunt"); buttonFlags[63] = false;
+            if (buttonFlags[63]) Mods.GrabAllRPCS(); buttonFlags[63] = false;
 
-            if (buttonFlags[64]) Mods.GrabAllIDS(); buttonFlags[64] = false;
+            if (buttonFlags[64]) Mods.SetName("ㅤ", false); buttonFlags[64] = false;
 
-            if (buttonFlags[65]) Mods.GrabAllBlockIDS(); buttonFlags[65] = false;
+            if (buttonFlags[65]) Mods.SetName("J0kerMenu", false); buttonFlags[65] = false;
 
-            if (buttonFlags[66]) Mods.GrabAllSoundIDS(); buttonFlags[66] = false;
+            if (buttonFlags[66]) Mods.SetName("", true); buttonFlags[66] = false;
 
-            if (buttonFlags[67]) Mods.GrabAllRPCS(); buttonFlags[67] = false;
-
-            if (buttonFlags[68]) Mods.SetName("ㅤ", false); buttonFlags[68] = false;
-
-            if (buttonFlags[69]) Mods.SetName("J0kerMenu", false); buttonFlags[69] = false;
-
-            if (buttonFlags[70]) Mods.SetName("", true); buttonFlags[70] = false;
-
-            if (buttonFlags[71]) Mods.SetName(customName, false);
+            if (buttonFlags[67]) Mods.SetName(customName, false);
             
-            if (buttonFlags[72]) Mods.PlayerESP(); else Mods.disablePlayerESP();
+            if (buttonFlags[68]) Mods.PlayerESP(); else Mods.disablePlayerESP();
 
-            if (buttonFlags[73]) Mods.BoneESP(); else Mods.disableBoneESP();
+            if (buttonFlags[69]) Mods.BoneESP(); else Mods.disableBoneESP();
 
-            if (buttonFlags[74]) Mods.NameTagESP(); else Mods.disableNameTagESP();
+            if (buttonFlags[70]) Mods.NameTagESP(); else Mods.disableNameTagESP();
 
-            if (buttonFlags[75]) Mods.BoxESP(); else Mods.disableBoxESP();
+            if (buttonFlags[71]) Mods.BoxESP(); else Mods.disableBoxESP();
 
-            if (buttonFlags[76]) Mods.ViewAllDates(); buttonFlags[76] = false;
+            if (buttonFlags[72]) Mods.SetBodyType(GorillaBodyType.NoHead, false); buttonFlags[72] = false;
 
-            if (buttonFlags[77]) Mods.EnableTracers(); else Mods.DisableTracers();
+            if (buttonFlags[73]) Mods.SetBodyType(GorillaBodyType.Skeleton, false); buttonFlags[73] = false;
 
-            if (buttonFlags[78]) Mods.AntiReport();
+            if (buttonFlags[74]) Mods.SetMatIndex();
+
+            if (buttonFlags[75]) Mods.SetBodyType(GorillaBodyType.Default, true); buttonFlags[75] = false;
+
+            if (buttonFlags[76]) Mods.RopesUp();
+
+            if (buttonFlags[77]) Mods.RopesTweak();
+
+            if (buttonFlags[78]) Mods.RopesSpaz();
+
+            if (buttonFlags[79]) Mods.FastRopes(); buttonFlags[79] = false;
+
+            if (buttonFlags[80]) Mods.ViewAllDates(); buttonFlags[80] = false;
+
+            if (buttonFlags[81]) Mods.EnableTracers(); else Mods.DisableTracers();
+
+            if (buttonFlags[82]) Mods.ButtonClickerGun();
+
+            if (buttonFlags[83]) Mods.MuteAll(); buttonFlags[83] = false;
+
+            if (buttonFlags[84]) Mods.AntiReport();
         }
 
         static void Panel()
@@ -379,7 +436,7 @@ namespace J0kerMenu_GTAG
             MenuPointer.tag = "Pointer";
             MenuPointer.GetComponent<Renderer>().material.shader = MenuShader;
 
-            SphereCollider pointerCollider = MenuPointer.AddComponent<SphereCollider>();
+            pointerCollider = MenuPointer.AddComponent<SphereCollider>();
             pointerCollider.isTrigger = true;
             pointerCollider.radius = 0.05f;
 
@@ -561,14 +618,14 @@ namespace J0kerMenu_GTAG
 
         public void OnGUI()
         {
-            if (!buttonFlags[71]) return;
+            if (!buttonFlags[67]) return;
 
             customName = GUILayout.TextArea(customName, GUILayout.Height(20));
 
             if (GUILayout.Button("Set Name", GUILayout.Height(20)))
             {
                 Mods.SetName(customName, false);
-                buttonFlags[71] = false;
+                buttonFlags[67] = false;
             }
         }
 
@@ -577,13 +634,48 @@ namespace J0kerMenu_GTAG
 
     public class ButtonTrigger : MonoBehaviour
     {
-        private int buttonIndex = -1;
+        public int buttonIndex = -1;
         private float cooldownTime = 0.5f;
         private float lastClickTime = 0f;
+        public string ISclick;
 
         public void SetButtonIndex(int index)
         {
             buttonIndex = index;
+        }
+
+        public void Update()
+        {
+            Vector2 mousePos = Mouse.current.position.ReadValue();
+
+            Camera cam = GameObject.Find("Shoulder Camera").GetComponent<Camera>();
+            Ray ray = cam.ScreenPointToRay(mousePos);
+
+            RaycastHit hit;
+            if (Physics.Raycast(ray, out hit))
+            {
+                ButtonTrigger buttons = hit.transform.GetComponent<ButtonTrigger>();
+                if (buttons != null)
+                {
+                    if (UnityInput.Current.GetMouseButton(0))
+                    {
+                        buttons.OnButtonClick();
+                    }
+                }
+            }
+        }
+
+        public void OnButtonClick()
+        {
+            if (Time.time - lastClickTime >= cooldownTime)
+            {
+                if (buttonIndex >= 0 && buttonIndex < Client.buttonFlags.Count)
+                {
+                    Client.buttonFlags[buttonIndex] = !Client.buttonFlags[buttonIndex];
+                }
+
+                lastClickTime = Time.time;
+            }
         }
 
         void OnTriggerEnter(Collider other)

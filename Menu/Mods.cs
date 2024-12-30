@@ -1,5 +1,7 @@
-﻿using ExitGames.Client.Photon;
+﻿using BepInEx;
+using ExitGames.Client.Photon;
 using GorillaGameModes;
+using GorillaLocomotion.Gameplay;
 using GorillaNetworking;
 using GorillaNetworking.Store;
 using GorillaTagScripts;
@@ -14,6 +16,8 @@ using System.Linq;
 using System.Reflection;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using static NetworkSystem;
 using Debug = UnityEngine.Debug;
 using GameMode = GorillaGameModes.GameMode;
 
@@ -24,13 +28,83 @@ namespace J0kerMenu_GTAG.Menu
         static GameObject GunSphere;
 
         #region Player
+        static float MatChangeSpeed;
+        private static float keyboardDelay;
+        static bool isOnPC;
 
         public static void Fly()
         {
+            PCHelp();
             if (ControllerInputPoller.instance.rightControllerSecondaryButton)
             {
                 GorillaLocomotion.Player.Instance.transform.position += GorillaLocomotion.Player.Instance.headCollider.transform.forward * Time.deltaTime * 15;
                 GorillaLocomotion.Player.Instance.GetComponent<Rigidbody>().velocity = Vector3.zero;
+            }
+
+            if (isOnPC) BasicWASD();
+        }
+
+        static void BasicWASD()
+        {
+            GorillaLocomotion.Player.Instance.GetComponent<Rigidbody>().velocity = Vector3.zero;
+            GorillaLocomotion.Player.Instance.GetComponent<Rigidbody>().useGravity = false;
+            bool jump = false;
+            int jumpint = 0;
+            float Up;
+            float Down;
+            if (UnityInput.Current.GetKey(KeyCode.LeftShift))
+            {
+                Up = 40f;
+                Down = -40f;
+            }
+            else
+            {
+                Up = 5f;
+                Down = -5f;
+            }
+            if (UnityInput.Current.GetKey(KeyCode.LeftControl))
+            {
+                GorillaLocomotion.Player.Instance.GetComponent<Rigidbody>().AddForce(0f, -65f, 0f, ForceMode.Impulse);
+            }
+            if (UnityInput.Current.GetKey(KeyCode.Space))
+            {
+                jump = true;
+            }
+            if (UnityInput.Current.GetKey(KeyCode.W))
+            {
+                GameObject.Find("Player Objects/Player VR Controller/GorillaPlayer/TurnParent").transform.position +=
+                    GorillaLocomotion.Player.Instance.bodyCollider.transform.forward * Time.deltaTime * Up;
+            }
+            if (UnityInput.Current.GetKey(KeyCode.S))
+            {
+                GameObject.Find("Player Objects/Player VR Controller/GorillaPlayer/TurnParent").transform.position +=
+                    GorillaLocomotion.Player.Instance.bodyCollider.transform.forward * Time.deltaTime * Down;
+            }
+            if (UnityInput.Current.GetKey(KeyCode.A))
+            {
+                GameObject.Find("Player Objects/Player VR Controller/GorillaPlayer/TurnParent").transform.Rotate(0f, -.9f, 0f);
+            }
+            if (UnityInput.Current.GetKey(KeyCode.D))
+            {
+                GameObject.Find("Player Objects/Player VR Controller/GorillaPlayer/TurnParent").transform.Rotate(0f, .9f, 0f);
+            }
+            while (jump)
+            {
+                jumpint++;
+                GorillaLocomotion.Player.Instance.GetComponent<Rigidbody>().AddForce(0f, 65f, 0f, ForceMode.Impulse);
+                jump = false;
+            }
+        }
+
+        static void PCHelp()
+        {
+            if (UnityInput.Current.anyKey)
+            {
+                isOnPC = true;
+            }
+            else
+            {
+                isOnPC = false;
             }
         }
 
@@ -44,18 +118,6 @@ namespace J0kerMenu_GTAG.Menu
             GorillaLocomotion.Player.Instance.velocityLimit = 0.3f;
         }
 
-        public static void NoGrav()
-        {
-            if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
-            {
-                GorillaLocomotion.Player.Instance.GetComponent<Rigidbody>().useGravity = false;
-            }
-            else
-            {
-                GorillaLocomotion.Player.Instance.GetComponent<Rigidbody>().useGravity = true;
-            }
-        }
-
         public static void NoTagFreeze()
         {
             GorillaLocomotion.Player.Instance.disableMovement = false;
@@ -63,7 +125,8 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void GhostMonkey()
         {
-            if (ControllerInputPoller.instance.rightControllerSecondaryButton)
+            GorillaTagger.Instance.offlineVRRig.enabled = false;
+            if (ControllerInputPoller.instance.rightControllerSecondaryButton || UnityInput.Current.GetKey(KeyCode.B))
             {
                 GorillaTagger.Instance.offlineVRRig.enabled = false;
             }
@@ -75,7 +138,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void InvisMonkey()
         {
-            if (ControllerInputPoller.instance.rightControllerSecondaryButton)
+            if (ControllerInputPoller.instance.rightControllerSecondaryButton || UnityInput.Current.GetKey(KeyCode.B))
             {
                 GorillaTagger.Instance.offlineVRRig.enabled = false;
                 GorillaTagger.Instance.offlineVRRig.transform.position = Vector3.zero;
@@ -88,9 +151,17 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void TPGun()
         {
-            if (ControllerInputPoller.instance.rightGrab)
+            if (ControllerInputPoller.instance.rightGrab || UnityInput.Current.GetMouseButton(1))
             {
                 Physics.Raycast(GorillaLocomotion.Player.Instance.rightControllerTransform.position, -GorillaLocomotion.Player.Instance.rightControllerTransform.up, out var hitinfo);
+
+                if (Mouse.current.rightButton.isPressed)
+                {
+                    Camera cam = GameObject.Find("Shoulder Camera").GetComponent<Camera>();
+                    Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+                    Physics.Raycast(ray, out hitinfo, 100);
+                }
+
                 GunSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 GunSphere.transform.position = hitinfo.point;
                 GunSphere.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
@@ -100,7 +171,7 @@ namespace J0kerMenu_GTAG.Menu
                 GameObject.Destroy(GunSphere.GetComponent<Rigidbody>());
                 GameObject.Destroy(GunSphere.GetComponent<Collider>());
 
-                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetMouseButton(0))
                 {
                     GameObject.Destroy(GunSphere, Time.deltaTime);
                     GunSphere.GetComponent<Renderer>().material.color = GorillaTagger.Instance.offlineVRRig.playerColor;
@@ -118,9 +189,17 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void RigGun()
         {
-            if (ControllerInputPoller.instance.rightGrab)
+            if (ControllerInputPoller.instance.rightGrab || Mouse.current.rightButton.isPressed)
             {
                 Physics.Raycast(GorillaLocomotion.Player.Instance.rightControllerTransform.position, -GorillaLocomotion.Player.Instance.rightControllerTransform.up, out var hitinfo);
+
+                if (Mouse.current.rightButton.isPressed)
+                {
+                    Camera cam = GameObject.Find("Shoulder Camera").GetComponent<Camera>();
+                    Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+                    Physics.Raycast(ray, out hitinfo, 100);
+                }
+
                 GunSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 GunSphere.transform.position = hitinfo.point;
                 GunSphere.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
@@ -130,7 +209,7 @@ namespace J0kerMenu_GTAG.Menu
                 GameObject.Destroy(GunSphere.GetComponent<Rigidbody>());
                 GameObject.Destroy(GunSphere.GetComponent<Collider>());
 
-                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || Mouse.current.leftButton.isPressed)
                 {
                     GameObject.Destroy(GunSphere, Time.deltaTime);
                     GunSphere.GetComponent<Renderer>().material.color = GorillaTagger.Instance.offlineVRRig.playerColor;
@@ -143,6 +222,89 @@ namespace J0kerMenu_GTAG.Menu
                     GorillaTagger.Instance.offlineVRRig.enabled = true;
                 }
             }
+            if (GunSphere != null)
+            {
+                GameObject.Destroy(GunSphere, Time.deltaTime);
+            }
+        }
+
+        public static void SetBodyType(GorillaBodyType type, bool Default)
+        {
+            GorillaBodyRenderer gorilla = GorillaTagger.Instance.offlineVRRig.gameObject.GetComponent<GorillaBodyRenderer>();
+
+            gorilla.SetCosmeticBodyType(type);
+
+            if (Default)
+            {
+                gorilla.SetMaterialIndex(0);
+            }
+        }
+
+        public static void SetMatIndex()
+        {
+            GorillaBodyRenderer gorilla = GorillaTagger.Instance.offlineVRRig.gameObject.GetComponent<GorillaBodyRenderer>();
+
+            if (Time.time > MatChangeSpeed)
+            {
+                MatChangeSpeed = Time.time + 0.089f;
+                gorilla.SetMaterialIndex(Random.Range(0, 14));
+            }
+        }
+
+        public static void ButtonClickerGun()
+        {
+            if (ControllerInputPoller.instance.rightGrab || UnityInput.Current.GetMouseButton(1))
+            {
+                RaycastHit hitinfo;
+
+                Physics.Raycast(GorillaLocomotion.Player.Instance.rightControllerTransform.position, -GorillaLocomotion.Player.Instance.rightControllerTransform.up, out hitinfo);
+
+                if (Mouse.current.rightButton.isPressed)
+                {
+                    Camera cam = GameObject.Find("Shoulder Camera").GetComponent<Camera>();
+                    Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+                    Physics.Raycast(ray, out hitinfo, 100);
+                }
+
+                GunSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                GunSphere.transform.position = hitinfo.point;
+                GunSphere.transform.localScale = new Vector3(0.05f, 0.05f, 0.05f);
+                GunSphere.GetComponent<Renderer>().material.shader = Shader.Find("GorillaTag/UberShader");
+                GunSphere.GetComponent<Renderer>().material.color = Color.white;
+
+                GameObject.Destroy(GunSphere.GetComponent<BoxCollider>());
+                GameObject.Destroy(GunSphere.GetComponent<Rigidbody>());
+                GameObject.Destroy(GunSphere.GetComponent<Collider>());
+
+                GorillaPressableButton gorillaPressable = hitinfo.collider.GetComponentInParent<GorillaPressableButton>();
+
+                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetMouseButton(0))
+                {
+                    GunSphere.GetComponent<Renderer>().material.color = GorillaTagger.Instance.offlineVRRig.playerColor;
+
+                    if (gorillaPressable)
+                    {
+                        typeof(GorillaPressableButton).GetMethod("OnTriggerEnter", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(gorillaPressable, new object[] { GameObject.Find("Player Objects/Player VR Controller/GorillaPlayer/TurnParent/RightHandTriggerCollider").GetComponent<Collider>() });
+                    }
+
+                    GorillaKeyboardButton keyboardButton = hitinfo.collider.GetComponentInParent<GorillaKeyboardButton>();
+                    if (keyboardButton && Time.time > keyboardDelay)
+                    {
+                        keyboardDelay = Time.time + 0.1f;
+                        typeof(GorillaKeyboardButton).GetMethod("OnTriggerEnter", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(keyboardButton, new object[] { GameObject.Find("Player Objects/Player VR Controller/GorillaPlayer/TurnParent/RightHandTriggerCollider").GetComponent<Collider>() });
+                    }
+
+                    GorillaPlayerLineButton lineButton = hitinfo.collider.GetComponentInParent<GorillaPlayerLineButton>();
+                    if (lineButton && Time.time > keyboardDelay)
+                    {
+                        keyboardDelay = Time.time + 0.1f;
+                        typeof(GorillaPlayerLineButton).GetMethod("OnTriggerEnter", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(lineButton, new object[] { GameObject.Find("Player Objects/Player VR Controller/GorillaPlayer/TurnParent/RightHandTriggerCollider").GetComponent<Collider>() });
+                    }
+
+                    GameObject.Destroy(GunSphere, Time.deltaTime);
+                }
+            }
+
             if (GunSphere != null)
             {
                 GameObject.Destroy(GunSphere, Time.deltaTime);
@@ -532,7 +694,7 @@ namespace J0kerMenu_GTAG.Menu
             if (Time.time > WaterDelay)
             {
                 WaterDelay = Time.time + 0.1f;
-                if (ControllerInputPoller.instance.leftControllerGripFloat > 0.1f)
+                if (ControllerInputPoller.instance.leftControllerGripFloat > 0.1f || UnityInput.Current.GetMouseButton(0))
                 {
                     GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlaySplashEffect", RpcTarget.All, new object[]
                     {
@@ -545,7 +707,7 @@ namespace J0kerMenu_GTAG.Menu
                     });
                 }
 
-                if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+                if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetMouseButton(1))
                 {
                     GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlaySplashEffect", RpcTarget.All, new object[]
                     {
@@ -567,7 +729,7 @@ namespace J0kerMenu_GTAG.Menu
             {
                 WaterDelay = Time.time + 0.1f;
 
-                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.T))
                 {
                     GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlaySplashEffect", RpcTarget.All, new object[]
                     {
@@ -588,7 +750,7 @@ namespace J0kerMenu_GTAG.Menu
             if (Time.time > WaterDelay)
             {
                 WaterDelay = Time.time + 0.1f;
-                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.T))
                 {
                     GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlaySplashEffect", RpcTarget.All, new object[]
                     {
@@ -610,7 +772,7 @@ namespace J0kerMenu_GTAG.Menu
             {
                 WaterDelay = Time.time + 0.1f;
 
-                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.T))
                 {
                     float auraRadius = 1.5f;
                     float angle = Random.Range(0f, Mathf.PI * 2);
@@ -640,7 +802,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void BigBlockSpammer()
         {
-            if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.T))
             {
                 if (Time.time > BlockDelay)
                 {
@@ -659,7 +821,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void BlockSpammer()
         {
-            if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.T))
             {
                 if (Time.time > BlockDelay)
                 {
@@ -679,7 +841,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void XmasBlockSpammer()
         {
-            if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.T))
             {
                 if (Time.time > BlockDelay)
                 {
@@ -697,7 +859,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void BlockLauncher()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 if (PhotonNetwork.IsMasterClient)
                 {
@@ -716,38 +878,14 @@ namespace J0kerMenu_GTAG.Menu
                 }
             }
         }
-
-        public static void FlingAllBlock()
-        {
-            if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
-            {
-                var randomRigs = GorillaParent.instance.vrrigs.OrderBy(x => UnityEngine.Random.value).Take(UnityEngine.Random.Range(1, GorillaParent.instance.vrrigs.Count + 1)).ToList();
-
-                foreach (VRRig rig in randomRigs)
-                {
-                    if (Time.time > BlockDelay)
-                    {
-                        BuilderPiece[] validPieces = Object.FindObjectsOfType<BuilderPiece>().Where(piece => piece.name.Contains("Floor")).ToArray();
-
-                        if (validPieces.Length > 0)
-                        {
-                            BuilderPiece randomPiece = validPieces[Random.Range(0, validPieces.Length)];
-                            BuilderTable.instance.RequestCreatePiece(randomPiece.pieceType, rig.bodyTransform.position, Quaternion.identity, randomPiece.materialType);
-                            Flush();
-                        }
-                        BlockDelay = Time.time + 0.2f;
-                    }
-                }
-            }
-        }
         #endregion
 
         #region Sounds
         static float SoundDelay;
-
+        static bool ShouldMute;
         public static void HandTapSpammer()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 if (Time.time > SoundDelay)
                 {
@@ -765,7 +903,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void PopSpammer()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 if (Time.time > SoundDelay)
                 {
@@ -784,7 +922,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void EatSpammer()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 if (Time.time > SoundDelay)
                 {
@@ -803,7 +941,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void RandomSpammer()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 if (Time.time > SoundDelay)
                 {
@@ -820,6 +958,19 @@ namespace J0kerMenu_GTAG.Menu
             }
         }
 
+        public static void MuteAll()
+        {
+            ShouldMute = !ShouldMute;
+
+            foreach (GorillaPlayerScoreboardLine line in GorillaScoreboardTotalUpdater.allScoreboardLines)
+            {
+                if (!line.muteButton.isAutoOn)
+                {
+                    line.PressButton(ShouldMute, GorillaPlayerLineButton.ButtonType.Mute);
+                }
+            }
+        }
+
         #endregion
 
         #region Party
@@ -828,7 +979,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void BracletSpammer()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 if (Time.time > BracletDelay)
                 {
@@ -881,7 +1032,7 @@ namespace J0kerMenu_GTAG.Menu
         {
             if (PhotonNetwork.IsMasterClient)
             {
-                if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+                if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
                 {
                     if (Time.time > FortuneDelay)
                     {
@@ -899,7 +1050,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void DoorSpammer()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 if (Time.time > DoorDelay)
                 {
@@ -919,7 +1070,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void CosmeticSpam()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 FittingRoomButton[] buttons = Object.FindObjectsOfType<FittingRoomButton>();
 
@@ -1063,7 +1214,7 @@ namespace J0kerMenu_GTAG.Menu
             }
             if (Time.time > projectileDelay)
             {
-                projectileDelay = Time.time + 0.2f;
+                projectileDelay = Time.time + 0.05f;
 
                 Rigidbody gorillaRigidbody = GorillaTagger.Instance.GetComponent<Rigidbody>();
                 Vector3 originalVelocity = gorillaRigidbody.velocity;
@@ -1131,7 +1282,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void SnowBallGun()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 if (projModsEnabled)
                 {
@@ -1150,7 +1301,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void WaterBalloonGun()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 if (projModsEnabled)
                 {
@@ -1169,7 +1320,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void LavaRockGun()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 if (projModsEnabled)
                 {
@@ -1188,7 +1339,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void VoteRockGun()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 if (projModsEnabled)
                 {
@@ -1207,7 +1358,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void HalloweenCandyGun()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 if (projModsEnabled)
                 {
@@ -1226,7 +1377,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void AppleGun()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 if (projModsEnabled)
                 {
@@ -1245,7 +1396,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void MentoGun()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 if (projModsEnabled)
                 {
@@ -1264,7 +1415,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void GiftGun()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 if (projModsEnabled)
                 {
@@ -1283,7 +1434,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void FishFoodGun()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
             {
                 if (projModsEnabled)
                 {
@@ -1299,104 +1450,6 @@ namespace J0kerMenu_GTAG.Menu
                 }
             }
         }
-        #endregion
-
-        #region Elf 
-        public static void ElfMiniGun()
-        {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
-            {
-                EnableElf();
-
-                ElfLauncher launcher = GameObject.Find("Player Objects/Local VRRig/Local Gorilla Player/RigAnchor/rig/body/shoulder.R/upper_arm.R/forearm.R/hand.R/palm.01.R/TransferrableItemRightHand/ElfLauncherAnchor(Clone)/LMANE.").GetComponent<ElfLauncher>();
-                MethodInfo launchMethod = typeof(ElfLauncher).GetMethod("Shoot", BindingFlags.NonPublic | BindingFlags.Instance);
-                launchMethod.Invoke(launcher, null);
-
-                Flush();
-            }
-        }
-
-        public static void LaunchElf()
-        {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
-            {
-                EnableElf();
-
-                ElfLauncher launcher = GameObject.Find("Player Objects/Local VRRig/Local Gorilla Player/RigAnchor/rig/body/TransferrableItemRightShoulder/DropZoneAnchor/ElfLauncherAnchor(Clone)/LMANE.").GetComponent<ElfLauncher>();
-
-                Vector3 randomSpread = Quaternion.Euler(Random.Range(-15f, 15f), Random.Range(-15f, 15f), 0f) * GorillaTagger.Instance.rightHandTransform.forward;
-
-                var args = new object[]
-                {
-                    (int)Traverse.Create(((RubberDuckEvents)Traverse.Create(launcher).Field("_events").GetValue()).Activate).Field("_eventId").GetValue(), GorillaTagger.Instance.rightHandTransform.position, randomSpread
-                };
-
-                PhotonNetwork.RaiseEvent(176, args, new RaiseEventOptions { Receivers = ReceiverGroup.All }, new SendOptions { Reliability = false, Encrypt = true });
-                Flush();
-            }
-        }
-
-        public static void ElfExplode()
-        {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
-            {
-                EnableElf();
-
-                ElfLauncher launcher = GameObject.Find("Player Objects/Local VRRig/Local Gorilla Player/RigAnchor/rig/body/TransferrableItemRightShoulder/DropZoneAnchor/ElfLauncherAnchor(Clone)/LMANE.").GetComponent<ElfLauncher>();
-
-                Vector3 randomSpread = Quaternion.Euler(Random.Range(-360f, 360f), Random.Range(-360f, 360f), Random.Range(-360f, 360f)) * Vector3.down;
-
-                var args = new object[]
-                {
-                    (int)Traverse.Create(((RubberDuckEvents)Traverse.Create(launcher).Field("_events").GetValue()).Activate).Field("_eventId").GetValue(), GorillaTagger.Instance.rightHandTransform.position, randomSpread
-                };
-
-                PhotonNetwork.RaiseEvent(176, args, new RaiseEventOptions { Receivers = ReceiverGroup.All }, new SendOptions { Reliability = false, Encrypt = true });
-                Flush();
-            }
-        }
-
-        public static void LaunchElfRain()
-        {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
-            {
-                EnableElf();
-
-                ElfLauncher launcher = GameObject.Find("Player Objects/Local VRRig/Local Gorilla Player/RigAnchor/rig/body/TransferrableItemRightShoulder/DropZoneAnchor/ElfLauncherAnchor(Clone)/LMANE.").GetComponent<ElfLauncher>();
-                TryOnBundleButton activeButton = GameObject.Find("Environment Objects/LocalObjects_Prefab/City_WorkingPrefab/CosmeticsRoomAnchor/nicegorillastore_prefab/DressingRoom_Mirrors_Prefab/TryOnStand/Console Center/Bottom/BundleButton Group 1/BundleFittingRoomButton-1").GetComponent<TryOnBundleButton>();
-
-                Vector3 randomPosition = GorillaTagger.Instance.headCollider.transform.position + new Vector3(Random.Range(-2f, 2f), Random.Range(2f, 2f), Random.Range(-2f, 2f));
-                Vector3 randomSpread = Quaternion.Euler(Random.Range(-15f, 15f), Random.Range(-15f, 15f), 0f) * Vector3.down;
-
-                var args = new object[]
-                {
-                    (int)Traverse.Create(((RubberDuckEvents)Traverse.Create(launcher).Field("_events").GetValue()).Activate).Field("_eventId").GetValue(), randomPosition, randomSpread
-                };
-
-                PhotonNetwork.RaiseEvent(176, args, new RaiseEventOptions { Receivers = ReceiverGroup.All }, new SendOptions { Reliability = false, Encrypt = true });
-                Flush();
-
-                if (activeButton != null && !activeButton.isOn)
-                {
-                    activeButton.ButtonActivationWithHand(false);
-                }
-            }
-        }
-
-        static void EnableElf()
-        {
-            if (!GorillaTagger.Instance.offlineVRRig.concatStringOfCosmeticsAllowed.Contains("LMANE."))
-            {
-                var activeButton = GameObject.Find("Environment Objects/LocalObjects_Prefab/City_WorkingPrefab/CosmeticsRoomAnchor/nicegorillastore_prefab/DressingRoom_Mirrors_Prefab/TryOnStand/Console Center/Bottom/BundleButton Group 1/BundleFittingRoomButton-1");
-
-                var button = activeButton.GetComponent<TryOnBundleButton>();
-                if (button != null && !button.isOn)
-                {
-                    button.ButtonActivationWithHand(false);
-                }
-            }
-        }
-
         #endregion
 
         #endregion
@@ -1426,12 +1479,12 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void ImpactSpam()
         {
-            if (ControllerInputPoller.instance.rightGrab)
+            if (ControllerInputPoller.instance.rightGrab || UnityInput.Current.GetMouseButton(1))
             {
                 Impact(GorillaTagger.Instance.offlineVRRig.rightHandTransform.position, Random.Range(150f, 255f), Random.Range(150f, 255f), Random.Range(150f, 255f));
             }
 
-            if (ControllerInputPoller.instance.leftGrab)
+            if (ControllerInputPoller.instance.leftGrab || UnityInput.Current.GetMouseButton(0))
             {
                 Impact(GorillaTagger.Instance.offlineVRRig.leftHandTransform.position, Random.Range(150f, 255f), Random.Range(150f, 255f), Random.Range(150f, 255f));
             }
@@ -1439,7 +1492,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void ImpactOthers()
         {
-            if (ControllerInputPoller.instance.rightGrab)
+            if (ControllerInputPoller.instance.rightGrab || UnityInput.Current.GetKey(KeyCode.G))
             {
                 List<VRRig> randomRigs = new List<VRRig>();
 
@@ -1462,7 +1515,7 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void ImpactAura()
         {
-            if (ControllerInputPoller.instance.rightGrab)
+            if (ControllerInputPoller.instance.rightGrab || UnityInput.Current.GetKey(KeyCode.G))
             {
                 int impactCount = 20;
                 float radius = 1.5f;
@@ -1480,10 +1533,18 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void ImpactGun()
         {
-            if (ControllerInputPoller.instance.rightGrab)
+            if (ControllerInputPoller.instance.rightGrab || UnityInput.Current.GetMouseButton(1))
             {
                 if (Physics.Raycast(GorillaLocomotion.Player.Instance.rightControllerTransform.position, -GorillaLocomotion.Player.Instance.rightControllerTransform.up, out var hitinfo))
                 {
+
+                    if (Mouse.current.rightButton.isPressed)
+                    {
+                        Camera cam = GameObject.Find("Shoulder Camera").GetComponent<Camera>();
+                        Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+                        Physics.Raycast(ray, out hitinfo, 100);
+                    }
+
                     GunSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                     GunSphere.transform.position = hitinfo.point;
                     GunSphere.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
@@ -1497,7 +1558,7 @@ namespace J0kerMenu_GTAG.Menu
 
                     if (player != null)
                     {
-                        if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+                        if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || Mouse.current.leftButton.isPressed)
                         {
                             GameObject.Destroy(GunSphere, Time.deltaTime);
                             GunSphere.GetComponent<Renderer>().material.color = GorillaTagger.Instance.offlineVRRig.playerColor;
@@ -1666,7 +1727,7 @@ namespace J0kerMenu_GTAG.Menu
                 Vector3 targetPosition = Vector3.zero;
                 VRRig targetPlayer = null;
 
-                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.T))
                 {
                     foreach (VRRig players in GorillaParent.instance.vrrigs)
                     {
@@ -1747,10 +1808,17 @@ namespace J0kerMenu_GTAG.Menu
         {
             if (GameMode.ActiveGameMode.GameType() == GameModeType.Infection)
             {
-                if (ControllerInputPoller.instance.rightGrab)
+                if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetMouseButton(1))
                 {
                     if (Physics.Raycast(GorillaLocomotion.Player.Instance.rightControllerTransform.position, -GorillaLocomotion.Player.Instance.rightControllerTransform.up, out var hitinfo))
                     {
+                        if (Mouse.current.rightButton.isPressed)
+                        {
+                            Camera cam = GameObject.Find("Shoulder Camera").GetComponent<Camera>();
+                            Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+                            Physics.Raycast(ray, out hitinfo, 100);
+                        }
+
                         GunSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                         GunSphere.transform.position = hitinfo.point;
                         GunSphere.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
@@ -1764,7 +1832,7 @@ namespace J0kerMenu_GTAG.Menu
 
                         if (player != null)
                         {
-                            if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+                            if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetMouseButton(0))
                             {
                                 GameObject.Destroy(GunSphere, Time.deltaTime);
                                 GunSphere.GetComponent<Renderer>().material.color = GorillaTagger.Instance.offlineVRRig.playerColor;
@@ -1800,7 +1868,7 @@ namespace J0kerMenu_GTAG.Menu
         {
             if (GameMode.ActiveGameMode.GameType() == GameModeType.Infection)
             {
-                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.T))
                 {
                     GorillaTagManager gorillaTagManager = FindObjectOfType<GorillaTagManager>();
 
@@ -1841,7 +1909,7 @@ namespace J0kerMenu_GTAG.Menu
                 bool foundNonTaggedPlayer = false;
                 Vector3 targetPosition = Vector3.zero;
 
-                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.T))
                 {
                     GetFreezeTag();
 
@@ -1888,7 +1956,7 @@ namespace J0kerMenu_GTAG.Menu
                 bool foundNonTaggedPlayer = false;
                 Vector3 targetPosition = Vector3.zero;
 
-                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.T))
                 {
                     GetFreezeTag();
 
@@ -1930,10 +1998,17 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void FreezeTagGun()
         {
-            if (ControllerInputPoller.instance.rightGrab)
+            if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetMouseButton(1))
             {
                 if (Physics.Raycast(GorillaLocomotion.Player.Instance.rightControllerTransform.position, -GorillaLocomotion.Player.Instance.rightControllerTransform.up, out var hitinfo))
                 {
+                    if (Mouse.current.rightButton.isPressed)
+                    {
+                        Camera cam = GameObject.Find("Shoulder Camera").GetComponent<Camera>();
+                        Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+                        Physics.Raycast(ray, out hitinfo, 100);
+                    }
+
                     GunSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                     GunSphere.transform.position = hitinfo.point;
                     GunSphere.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
@@ -1947,7 +2022,7 @@ namespace J0kerMenu_GTAG.Menu
 
                     if (player != null)
                     {
-                        if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+                        if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetMouseButton(0))
                         {
                             GameObject.Destroy(GunSphere, Time.deltaTime);
                             GunSphere.GetComponent<Renderer>().material.color = GorillaTagger.Instance.offlineVRRig.playerColor;
@@ -1983,7 +2058,7 @@ namespace J0kerMenu_GTAG.Menu
         {
             if (GameMode.ActiveGameMode.GameType() == GameModeType.FreezeTag)
             {
-                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f)
+                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.T))
                 {
                     GetFreezeTag();
 
@@ -2164,7 +2239,7 @@ namespace J0kerMenu_GTAG.Menu
 
                 if (netView != null)
                 {
-                    if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f)
+                    if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
                     {
                         GorillaGuardianManager manager = FindObjectOfType<GorillaGuardianManager>();
                         if (manager.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
@@ -2237,7 +2312,6 @@ namespace J0kerMenu_GTAG.Menu
         #endregion
 
         #region Name
-
         public static void SetName(string PlayerName, bool Random)
         {
             if (Random)
@@ -2258,8 +2332,72 @@ namespace J0kerMenu_GTAG.Menu
             GorillaComputer.instance.savedName = PlayerName;
             PlayerPrefs.SetString("playerName", PlayerName);
             PlayerPrefs.Save();
-        } 
+        }
 
+        #endregion
+
+        #region Ropes
+        static float RopeDelay;
+        static bool shouldDoFastRopes;
+
+        static void RopeLaunch(Vector3 velocity)
+        {
+            if (ControllerInputPoller.instance.rightGrab || UnityInput.Current.GetKey(KeyCode.G))
+            {
+                if (Time.time > RopeDelay)
+                {
+                    RopeDelay = Time.time + 0.25f;
+
+                    foreach (GorillaRopeSwing ropeSwing in Object.FindObjectsOfType(typeof(GorillaRopeSwing)))
+                    {
+                        RopeSwingManager.instance.photonView.RPC("SetVelocity", RpcTarget.All, new object[] 
+                        {
+                            ropeSwing.ropeId,
+                            1,
+                            velocity,
+                            true,
+                            null
+                        });
+                    }
+                    Flush();
+                }
+            }
+        }
+
+        public static void RopesUp()
+        {
+            RopeLaunch(new Vector3(10f, 999f, 0f));
+        }
+
+        public static void RopesTweak()
+        {
+            RopeLaunch(new Vector3(-10f, -999f, 0f));
+        }
+
+        public static void RopesSpaz()
+        {
+            Vector3 Spaz = new Vector3(Random.Range(50f, -50f), Random.Range(50f, -5f), Random.Range(50f, -50f));
+            RopeLaunch(Spaz);
+        }
+
+        public static void FastRopes()
+        {
+            shouldDoFastRopes = !shouldDoFastRopes;
+            foreach (GorillaRopeSwingSettings ropeSwing in GameObject.FindObjectsOfType(typeof(GorillaRopeSwingSettings)))
+            {
+                if (ropeSwing.name.Contains("Default"))
+                {
+                    if (shouldDoFastRopes)
+                    {
+                        ropeSwing.inheritVelocityMultiplier = 4f;
+                    }
+                    else
+                    {
+                        ropeSwing.inheritVelocityMultiplier = 0.9f;
+                    }
+                }
+            }
+        }
         #endregion
     }
 }
