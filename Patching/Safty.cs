@@ -1,15 +1,11 @@
 ﻿using GorillaNetworking;
 using HarmonyLib;
-using Photon.Pun;
 using PlayFab.CloudScriptModels;
 using PlayFab.Internal;
 using PlayFab;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
+using GorillaTagScripts;
 
 namespace J0kerMenu_GTAG.Mod_Menu.Patching
 {
@@ -18,7 +14,6 @@ namespace J0kerMenu_GTAG.Mod_Menu.Patching
     {
         private static bool Prefix(string susReason, string susId, string susNick)
         {
-            Debug.Log("REPORT: " + susReason);
             return false;
         }
     }
@@ -59,16 +54,6 @@ namespace J0kerMenu_GTAG.Mod_Menu.Patching
         }
     }
 
-    [HarmonyPatch(typeof(GorillaNot), "IncrementRPCCallLocal")]
-    public class NoIncrementRPCCallLocal : MonoBehaviour
-    {
-        private static bool Prefix(PhotonMessageInfoWrapped infoWrapped, string rpcFunction)
-        {
-            Debug.Log(infoWrapped.Sender.NickName + " sent rpc: " + rpcFunction);
-            return false;
-        }
-    }
-
     [HarmonyPatch(typeof(GorillaNot), "GetRPCCallTracker")]
     internal class NoGetRPCCallTracker : MonoBehaviour
     {
@@ -77,25 +62,6 @@ namespace J0kerMenu_GTAG.Mod_Menu.Patching
             return false;
         }
     }
-
-    [HarmonyPatch(typeof(GorillaNot), "IncrementRPCCall", new Type[] { typeof(PhotonMessageInfo), typeof(string) })]
-    public class NoIncrementRPCCall : MonoBehaviour
-    {
-        private static bool Prefix(PhotonMessageInfo info, string callingMethod = "")
-        {
-            return false;
-        }
-    }
-
-    [HarmonyPatch(typeof(VRRig), "IncrementRPC", new Type[] { typeof(PhotonMessageInfoWrapped), typeof(string) })]
-    public class NoIncrementRPC : MonoBehaviour
-    {
-        private static bool Prefix(PhotonMessageInfoWrapped info, string sourceCall)
-        {
-            return false;
-        }
-    }
-    
 
     [HarmonyPatch(typeof(PlayFabDeviceUtil), "SendDeviceInfoToPlayFab")]
     internal class PlayfabUtil01 : MonoBehaviour
@@ -169,6 +135,25 @@ namespace J0kerMenu_GTAG.Mod_Menu.Patching
         private static bool Prefix(string PlayerID, GorillaPlayerLineButton.ButtonType buttonType, string OtherPlayerNickName)
         {
             return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(BuilderTableNetworking), "PieceCreatedRPC")]
+    public class BuilderPiecePatch
+    {
+        public static bool enabled = false;
+        public static int pieceNeeded = 0;
+        public static int pieceId = -1;
+        private static void Postfix(int type, int id)
+        {
+            if (enabled)
+            {
+                if (pieceNeeded == type)
+                {
+                    pieceId = id;
+                    enabled = false;
+                }
+            }
         }
     }
 

@@ -7,6 +7,12 @@ using System.Collections;
 using UnityEngine.Networking;
 using BepInEx;
 using UnityEngine.InputSystem;
+using GorillaNetworking;
+using Photon.Pun;
+using ExitGames.Client.Photon;
+using Photon.Realtime;
+using BepInEx.Logging;
+using System;
 
 namespace J0kerMenu_GTAG
 {
@@ -24,100 +30,38 @@ namespace J0kerMenu_GTAG
         static TextMeshPro textMesh;
         static bool MenuActive = false;
         static string Catagory;
-        static string[] categories = { "Player", "Rig", "Tag", "Water", "Sounds", "Party", "City", "Guardian", "Projectile", "Projectile", "Impact", "Freeze Tag", "Blocks", "PaintBrawl", "Mode", "Info", "Name", "ESP", "Body", "Ropes", "Misc" };
-        static string checkMenuVersion = ""; // Prevents You From Having A Outdated Menu
+        static string[] categories = { "Player", "Rig", "Tag", "Water", "Sounds", "Party", "City", "Guardian", "Projectile", "Projectile", "Impact", "Freeze Tag", "Blocks", "PaintBrawl", "Mode", "Info", "Name", "ESP", "Body", "Ropes", "Misc", "OP", "Safty" };
         static bool PCMenu;
         #endregion
 
         #region Buttons Var
         static List<string> buttonTexts = new List<string>
         {
-            "Fly [B]",
-            "Platforms",
-            "UnCap Velocity",
-            "No Tag Freeze",
-            "Ghost Monkey [B]",
-            "Invis Monkey [B]",
-            "TP Gun",
-            "Rig Gun",
-            "Tag All [T]",
-            "Tag Aura",
-            "Tag Gun",
-            "Tag Self [T]",
-            "Water Spam Hands [G]",
-            "Water Spam Body [T]",
-            "Water Spam Head [T]",
-            "Water Spam Aura [T]",
-            "Hand Tap Spammer [G]",
-            "Pop Spammer [G]",
-            "Eat Spammer [G]",
-            "Random Spammer [G]",
-            "Braclet Spammer [G]",
-            "Braclet Add",
-            "Braclet Remove",
-            "Leave Party",
-            "Fortune Teller Spaz [G] [M]",
-            "Basement Door Spam [G]",
-            "Cosmetic Spam [G] [Try On]",
-            "Add Random [Try On]",
-            "Grab All",
-            "Drop All",
-            "Fling All [G]",
-            "Get Guardian",
-            "SnowBall Launcher [G]",
-            "WaterBalloon Launcher [G]",
-            "Halloween Candy Launcher [G]",
-            "Fish Food Launcher [G]",
-            "Vote Rock Launcher [G]",
-            "Apple Launcher [G]",
-            "Mento Launcher [G]",
-            "Gift Launcher [G]",
-            "Impact Spam [G]",
-            "Impact Others [G]",
-            "Impact Aura [G]",
-            "Impact Gun",
-            "Freeze All [T]",
-            "Un Freeze All [T]",
-            "Freeze Gun",
-            "Freeze Self [T]",
-            "Big Block Spammer [T]",
-            "Block Spammer [T]",
-            "Block Spammer [T] [XMAS]",
-            "Block Launcher [G] [M]",
-            "Auto Fire [G]",
-            "Aimbot [G]",
-            "Revive [M]",
-            "Kill All [M]",
-            "Set Mode [Paintbrawl]",
-            "Set Mode [Ambush]",
-            "Set Mode [Ghost]",
-            "Set Mode [Hunt]",
-            "Get Player Info",
-            "Get Block Info",
-            "Get Sound Info",
-            "Get RPC Info",
-            "Set Name [No Name]",
-            "Set Name [J0kerMenu]",
-            "Set Name [Random]",
-            "Set Name [Custom] [GUI]",
-            "Player ESP",
-            "Bone ESP",
-            "NameTag ESP",
-            "Box ESP",
-            "No Head [CS]",
-            "Skeleton Body [CS]",
-            "Material Changer [CS]",
-            "Default Body [CS]",
-            "Ropes Up [G]",
-            "Rope Tweak [G]",
-            "Rope Spaz [G]",
-            "Fast Ropes",
-            "Player Info [Name Tag]",
-            "Allow Tracers [ESP]",
-            "Button Click Gun",
-            "Mute All [CS]",
-            "Anti Report",
+            "Fly [B]", "Platforms", "Rainbow Monkey", "No Tag Freeze", // Player
+            "Ghost Monkey [B]", "Invis Monkey [B]", "TP Gun", "Rig Gun", // Rig
+            "Tag All [T]", "Tag Aura", "Tag Gun", "Tag Self [T]", // Tag
+            "Water Spam Hands [G]", "Water Spam Body [T]", "Water Spam Head [T]", "Water Spam Aura [T]", // water
+            "Hand Tap Spammer [G]", "Pop Spammer [G]", "Eat Spammer [G]", "Random Spammer [G]", // Sounds
+            "Braclet Spammer [G]", "Braclet Add", "Braclet Remove", "Leave Party", // Party
+            "Fortune Teller Spaz [G] [M]", "Basement Door Spam [G]", "Cosmetic Spam [G] [Try On]", "Add Random [Try On]", // City
+            "Grab All", "Drop All", "Fling All [G]", "Get Guardian", // Guardian
+            "SnowBall Launcher [G]", "WaterBalloon Launcher [G]", "Halloween Candy Launcher [G]", "Fish Food Launcher [G]", // Projectiles
+            "Vote Rock Launcher [G]", "Apple Launcher [G]", "Mento Launcher [G]", "Gift Launcher [G]", // Projectiles
+            "Impact Spam [G]", "Impact Others [G]", "Impact Aura [G]", "Impact Gun", // Impact
+            "Freeze All [T]", "Un Freeze All [T]", "Freeze Gun", "Freeze Self [T]", // Freeze Tag
+            "Big Block Spammer [T]", "Block Spammer [T]", "Block Spammer [T] [New Set]", "Block Lag All", // Blocks
+            "Auto Fire [G]", "Aimbot [G]", "Revive [M]", "Kill All [M]", // Battle
+            "Set Mode [Paintbrawl]", "Set Mode [Ambush]", "Set Mode [Ghost]", "Set Mode [Hunt]", // Mode
+            "Get Player Info", "Get Block Info", "Get Sound Info", "Get RPC Info", // Info
+            "Set Name [No Name]", "Set Name [J0kerMenu]", "Set Name [Random]", "Set Name [Custom] [GUI]", // Name
+            "Player ESP", "Bone ESP", "NameTag ESP", "Box ESP", // ESP
+            "No Head [CS]", "Skeleton Body [CS]", "Material Changer [CS]", "Default Body [CS]", // Body
+            "Ropes Up [G]", "Rope Tweak [G]", "Rope Spaz [G]", "Rope Gun", // Ropes
+            "Player Info [Name Tag]", "Allow Tracers [ESP]", "Change Snow Ball", "Mute All [CS]", // Misc
+            "Fling All", "Fling Gun", "Kick All [Stump] [Priv]", "Kick All [Party]", // OP
+            "Anti Report [Leave]", "Anti Report [Fling]", "Anti Staff" // Safty
         };
+
         public static List<bool> buttonFlags = new List<bool>();
         public static List<GameObject> ButtonObjects = new List<GameObject>();
         static bool ButtonsCreated;
@@ -135,39 +79,31 @@ namespace J0kerMenu_GTAG
             UpdateButtonVisibility();
         }
 
-        // I ADDED PC VIEW SUPPORT (THE CODE LOOKS LIKE SHIT NOW BUT IT WORKS!)
-        public void Update()
+        public void FixedUpdate()
         {
-            if (checkMenuVersion == "")
+
+            if (ControllerInputPoller.instance.leftControllerSecondaryButton)
             {
-                StartCoroutine(CheckVersion());
-                StartCoroutine(CheckLockDown());
+                MenuActive = true;
+            }
+            else
+            {
+                if (!PCMenu)
+                {
+                    MenuActive = false;
+                }
             }
 
-            if (checkMenuVersion == "Done")
+            if (UnityInput.Current.GetKey(KeyCode.Q))
             {
-                if (ControllerInputPoller.instance.leftControllerSecondaryButton)
-                {
-                    MenuActive = true;
-                }
-                else
-                {
-                    if (!PCMenu)
-                    {
-                        MenuActive = false;
-                    }
-                }
-
-                if (UnityInput.Current.GetKey(KeyCode.Q))
-                {
-                    PCMenu = true;
-                    MenuActive = true;
-                }
-                else
-                {
-                    PCMenu = false;
-                }
+                PCMenu = true;
+                MenuActive = true;
             }
+            else
+            {
+                PCMenu = false;
+            }
+        
 
             MenuPrefab.SetActive(MenuActive);
             MenuPointer.SetActive(MenuActive);
@@ -204,12 +140,12 @@ namespace J0kerMenu_GTAG
             CatagoryHanlder();
             MenuNameHandler();
 
-            if (MenuActive && ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetMouseButton(4))
+            if (MenuActive && ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetMouseButton(4) || UnityInput.Current.GetKey(KeyCode.RightArrow))
             {
                 NextPage();
             }
 
-            if (MenuActive && ControllerInputPoller.instance.leftControllerIndexFloat > 0.1f || UnityInput.Current.GetMouseButton(3))
+            if (MenuActive && ControllerInputPoller.instance.leftControllerIndexFloat > 0.1f || UnityInput.Current.GetMouseButton(3) || UnityInput.Current.GetKey(KeyCode.LeftArrow))
             {
                 BackPage();
             }
@@ -222,6 +158,14 @@ namespace J0kerMenu_GTAG
             else if (GorillaTagger.Instance.offlineVRRig.gameObject.transform.localScale == new Vector3(1f, 1f, 1f))
             {
                 MenuPrefab.transform.localScale = new Vector3(0.02f, 0.3f, 0.3f);
+            }
+
+            Rejoin();
+            NoUserAgreeMent();
+
+            if (PhotonNetwork.InRoom)
+            {
+                Mods.playedReportSound = false;
             }
         }
 
@@ -247,7 +191,7 @@ namespace J0kerMenu_GTAG
 
             if (buttonFlags[1]) Mods.Platforms();
 
-            if (buttonFlags[2]) Mods.UnCapVelocity(); else Mods.ReCapVelocity();
+            if (buttonFlags[2]) Mods.RGB();
 
             if (buttonFlags[3]) Mods.NoTagFreeze();
 
@@ -343,9 +287,9 @@ namespace J0kerMenu_GTAG
 
             if (buttonFlags[49]) Mods.BlockSpammer();
 
-            if (buttonFlags[50]) Mods.XmasBlockSpammer();
+            if (buttonFlags[50]) Mods.NewSetBlockSpammer();
 
-            if (buttonFlags[51]) Mods.BlockLauncher();
+            if (buttonFlags[51]) Mods.BlockLagAll();
 
             if (buttonFlags[52]) Mods.AutoFire();
 
@@ -401,17 +345,29 @@ namespace J0kerMenu_GTAG
 
             if (buttonFlags[78]) Mods.RopesSpaz();
 
-            if (buttonFlags[79]) Mods.FastRopes(); buttonFlags[79] = false;
+            if (buttonFlags[79]) Mods.RopeGun();
 
             if (buttonFlags[80]) Mods.ViewAllDates(); buttonFlags[80] = false;
 
             if (buttonFlags[81]) Mods.EnableTracers(); else Mods.DisableTracers();
 
-            if (buttonFlags[82]) Mods.ButtonClickerGun();
+            if (buttonFlags[82]) Mods.BigSnowBalls(); buttonFlags[82] = false;
 
             if (buttonFlags[83]) Mods.MuteAll(); buttonFlags[83] = false;
 
-            if (buttonFlags[84]) Mods.AntiReport();
+            if (buttonFlags[84]) Mods.FlingAllSnowBall();
+
+            if (buttonFlags[85]) Mods.FlingGun();
+
+            if (buttonFlags[86]) Mods.GroupKickAll(); buttonFlags[86] = false;
+
+            if (buttonFlags[87]) Mods.PartyKickAll(); buttonFlags[87] = false;
+
+            if (buttonFlags[88]) Mods.AntiReportLeave();
+
+            if (buttonFlags[89]) Mods.AntiReportFling();
+
+            if (buttonFlags[90]) Mods.AntiStaff();
         }
 
         static void Panel()
@@ -550,68 +506,29 @@ namespace J0kerMenu_GTAG
             textObject.transform.localScale = Vector3.one * 0.1f;
         }
 
-        #region Version Checker
-        private string lockDownURL = "https://pastebin.com/raw/pxqcgumS";
-        private string versionUrl = "https://pastebin.com/raw/HC97dXU1";
-        private string expectedVersion = "1.0.1";
-        private string shouldLockDown = "Safe";
-
-        private IEnumerator CheckVersion()
+        static void Rejoin()
         {
-            UnityWebRequest request = UnityWebRequest.Get(versionUrl);
-
-            yield return request.SendWebRequest();
-
-            if (request.result == UnityWebRequest.Result.Success)
+            if (!string.IsNullOrEmpty(Mods.lastRoomName) && Time.time > Mods.rejoinAfterKickDelay)
             {
-                string latestVersion = request.downloadHandler.text.Trim();
+                Mods.rejoinAfterKickDelay = Time.time + 3f;
 
-                if (latestVersion == expectedVersion)
+                if (PhotonNetwork.InRoom && PhotonNetwork.CurrentRoom.Name == Mods.lastRoomName)
                 {
-                    checkMenuVersion = "Done";
+                    Mods.lastRoomName = null;
+                    return;
                 }
-                else
-                {
-                    checkMenuVersion = "OutDated";
-
-                    GameObject.Find("motd (1)").GetComponent<TextMeshPro>().text = "<color=red>OUTDATED!</color>";
-
-                    TextMeshPro motdText = GameObject.Find("motdtext").GetComponent<TextMeshPro>();
-                    motdText.text = "<color=red>THIS MENU IS OUT DATED PLEASE UPDATE THE MENU!</color>\n<size=150>j0kermodz.lol</size>";
-                    motdText.alignment = TextAlignmentOptions.Center;
-                    motdText.verticalAlignment = VerticalAlignmentOptions.Top;
-                }
+                PhotonNetworkController.Instance.AttemptToJoinSpecificRoom(Mods.lastRoomName, JoinType.Solo);
             }
         }
 
-        private IEnumerator CheckLockDown()
+        static void NoUserAgreeMent()
         {
-            UnityWebRequest request = UnityWebRequest.Get(lockDownURL);
-
-            yield return request.SendWebRequest();
-
-            if (request.result == UnityWebRequest.Result.Success)
+            GameObject userThing = GameObject.Find("Miscellaneous Scripts/PrivateUIRoom");
+            if (userThing.activeSelf)
             {
-                string latestShouldLock = request.downloadHandler.text.Trim();
-
-                if (latestShouldLock == shouldLockDown)
-                {
-                    checkMenuVersion = "Done";
-                }
-                else
-                {
-                    checkMenuVersion = "LOCKED";
-
-                    GameObject.Find("motd (1)").GetComponent<TextMeshPro>().text = "<color=red>LOCKED DOWN!</color>";
-
-                    TextMeshPro motdText = GameObject.Find("motdtext").GetComponent<TextMeshPro>();
-                    motdText.text = "<color=red>THIS MENU IS LOCKED AS A MOD OR MENU GOT DETECTED!</color>\n<size=150>MORE INFO:\nj0kermodz.lol</size>";
-                    motdText.alignment = TextAlignmentOptions.Center;
-                    motdText.verticalAlignment = VerticalAlignmentOptions.Top;
-                }
+                userThing.SetActive(false);
             }
         }
-        #endregion
 
         #region Name GUI
         public static string customName;

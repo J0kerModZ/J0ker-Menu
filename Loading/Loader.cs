@@ -1,5 +1,4 @@
 ﻿using BepInEx;
-using J0kerMenu_GTAG.Menu;
 using UnityEngine;
 
 namespace J0kerMenu_GTAG.Loading

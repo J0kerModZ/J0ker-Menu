@@ -150,4 +150,6 @@ C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\obj\Debug\J0kerMe
 C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\obj\Debug\J0kerMenu GTAG.pdb
 C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\0Harmony.dll
 C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\BepInEx.dll
+C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\com.rlabrecque.steamworks.net.dll
 C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\Oculus.Interaction.dll
+C:\Users\J0ker ModZ\source\repos\J0kerMenu GTAG\J0kerMenu GTAG\bin\Debug\nexus.nexussdk.Runtime.dll

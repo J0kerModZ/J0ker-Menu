@@ -6,6 +6,7 @@ using GorillaNetworking;
 using GorillaNetworking.Store;
 using GorillaTagScripts;
 using HarmonyLib;
+using J0kerMenu_GTAG.Mod_Menu.Patching;
 using Photon.Pun;
 using Photon.Realtime;
 using PlayFab;
@@ -17,7 +18,6 @@ using System.Reflection;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using static NetworkSystem;
 using Debug = UnityEngine.Debug;
 using GameMode = GorillaGameModes.GameMode;
 
@@ -26,6 +26,7 @@ namespace J0kerMenu_GTAG.Menu
     public class Mods : MonoBehaviourPunCallbacks
     {
         static GameObject GunSphere;
+        static VRRig lockedTarget = null;
 
         #region Player
         static float MatChangeSpeed;
@@ -108,15 +109,89 @@ namespace J0kerMenu_GTAG.Menu
             }
         }
 
-        public static void UnCapVelocity()
+        #region RGB
+        static float RGBDelay;
+        static float r;
+        static float g;
+        static float b;
+
+        public static void RGB()
         {
-            GorillaLocomotion.Player.Instance.velocityLimit = float.MinValue;
+            if (Time.time > RGBDelay)
+            {
+                RGBDelay = Time.time + 0.1f;
+
+                Rainbow();
+
+                GorillaTagger.Instance.UpdateColor(r, g, b);
+
+                if (PhotonNetwork.InRoom)
+                {
+                    GorillaTagger.Instance.myVRRig.SendRPC("RPC_InitializeNoobMaterial", RpcTarget.All, new object[] { r, g, b });
+                }
+                else
+                {
+                    GorillaTagger.Instance.offlineVRRig.InitializeNoobMaterialLocal(r, g, b);
+                }
+            }
         }
 
-        public static void ReCapVelocity()
+        static void Rainbow()
         {
-            GorillaLocomotion.Player.Instance.velocityLimit = 0.3f;
+            float amount = 0.1f;
+
+            if (r == 1f)
+            {
+                if (b > 0f)
+                {
+                    b = Mathf.Clamp01(b - amount);
+                    return;
+                }
+                if (g < 1f)
+                {
+                    g = Mathf.Clamp01(g + amount);
+                    return;
+                }
+                r = Mathf.Clamp01(r - amount);
+                return;
+            }
+            else if (g == 1f)
+            {
+                if (r > 0f)
+                {
+                    r = Mathf.Clamp01(r - amount);
+                    return;
+                }
+                if (b < 1f)
+                {
+                    b = Mathf.Clamp01(b + amount);
+                    return;
+                }
+                g = Mathf.Clamp01(g - amount);
+                return;
+            }
+            else
+            {
+                if (b != 1f)
+                {
+                    r = Mathf.Clamp01(r + amount);
+                    return;
+                }
+                if (g > 0f)
+                {
+                    g = Mathf.Clamp01(g - amount);
+                    return;
+                }
+                if (r < 1f)
+                {
+                    r = Mathf.Clamp01(r + amount);
+                    return;
+                }
+                b = Mathf.Clamp01(b - amount);
+                return;
+            }
         }
+        #endregion
 
         public static void NoTagFreeze()
         {
@@ -496,20 +571,23 @@ namespace J0kerMenu_GTAG.Menu
         {
             foreach (VRRig rigs in GorillaParent.instance.vrrigs)
             {
-                GameObject gameObject = new GameObject("PlayerLine");
-                LineRenderer lineRenderer = gameObject.AddComponent<LineRenderer>();
-                Color Color = rigs.playerColor;
-                lineRenderer.startColor = Color;
-                lineRenderer.endColor = Color;
-                lineRenderer.startWidth = 0.01f;
-                lineRenderer.endWidth = 0.01f;
-                lineRenderer.positionCount = 2;
-                lineRenderer.useWorldSpace = true;
-                lineRenderer.SetPosition(0, GorillaLocomotion.Player.Instance.rightControllerTransform.position);
-                lineRenderer.SetPosition(1, rigs.bodyTransform.position);
-                lineRenderer.material.shader = Shader.Find("GUI/Text Shader");
-                UnityEngine.Object.Destroy(lineRenderer, Time.deltaTime);
-                UnityEngine.Object.Destroy(gameObject, Time.deltaTime);
+                if (rigs != GorillaTagger.Instance.offlineVRRig)
+                {
+                    GameObject gameObject = new GameObject("PlayerLine");
+                    LineRenderer lineRenderer = gameObject.AddComponent<LineRenderer>();
+                    Color Color = rigs.playerColor;
+                    lineRenderer.startColor = Color;
+                    lineRenderer.endColor = Color;
+                    lineRenderer.startWidth = 0.01f;
+                    lineRenderer.endWidth = 0.01f;
+                    lineRenderer.positionCount = 2;
+                    lineRenderer.useWorldSpace = true;
+                    lineRenderer.SetPosition(0, GorillaLocomotion.Player.Instance.rightControllerTransform.position);
+                    lineRenderer.SetPosition(1, rigs.bodyTransform.position);
+                    lineRenderer.material.shader = Shader.Find("GUI/Text Shader");
+                    UnityEngine.Object.Destroy(lineRenderer, Time.deltaTime);
+                    UnityEngine.Object.Destroy(gameObject, Time.deltaTime);
+                }
             }
         }
 
@@ -813,8 +891,9 @@ namespace J0kerMenu_GTAG.Menu
                         BuilderPiece randomPiece = validPieces[Random.Range(0, validPieces.Length)];
                         BuilderTable.instance.RequestCreatePiece(randomPiece.pieceType, GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.position, GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.rotation, randomPiece.materialType);
                         Flush();
+                        BuilderPiecePatch.enabled = true;
                     }
-                    BlockDelay = Time.time + 0.2f;
+                    BlockDelay = Time.time + 0.05f;
                 }
             }
         }
@@ -831,15 +910,15 @@ namespace J0kerMenu_GTAG.Menu
                     {
                         BuilderPiece randomPiece = validPieces[Random.Range(0, validPieces.Length)];
                         BuilderTable.instance.RequestCreatePiece(randomPiece.pieceType, GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.position, GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.rotation, randomPiece.materialType);
+                        BuilderPiecePatch.enabled = true;
                         Flush();
                     }
-                    BlockDelay = Time.time + 0.2f;
+                    BlockDelay = Time.time + 0.05f;
                 }
             }
         }
 
-
-        public static void XmasBlockSpammer()
+        public static void NewSetBlockSpammer()
         {
             if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.T))
             {
@@ -850,31 +929,10 @@ namespace J0kerMenu_GTAG.Menu
                     {
                         BuilderPiece randomPiece = winterPieces[Random.Range(0, winterPieces.Length)];
                         BuilderTable.instance.RequestCreatePiece(randomPiece.pieceType, GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.position, GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.rotation, randomPiece.materialType);
+                        BuilderPiecePatch.enabled = true;
                         Flush();
                     }
-                    BlockDelay = Time.time + 0.2f;
-                }
-            }
-        }
-
-        public static void BlockLauncher()
-        {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
-            {
-                if (PhotonNetwork.IsMasterClient)
-                {
-                    if (Time.time > BlockDelay)
-                    {
-                        BuilderPiece[] validPieces = Object.FindObjectsOfType<BuilderPiece>().Where(piece => piece.name.Contains("Wall") || piece.name.Contains("Floor") || piece.name.Contains("Roof")).ToArray();
-
-                        if (validPieces.Length > 0)
-                        {
-                            BuilderPiece randomPiece = validPieces[Random.Range(0, validPieces.Length)];
-                            BuilderTableNetworking.instance.photonView.RPC("RequestDropPieceRPC", RpcTarget.MasterClient, new object[] { randomPiece.pieceId, randomPiece.pieceId, GorillaTagger.Instance.offlineVRRig.rightHandTransform.position, GorillaTagger.Instance.offlineVRRig.rightHandTransform.rotation, GorillaTagger.Instance.offlineVRRig.rightHandTransform.up * 8.44f, Vector3.zero, PhotonNetwork.LocalPlayer });
-                            Flush();
-                        }
-                        BlockDelay = Time.time + 0.1f;
-                    }
+                    BlockDelay = Time.time + 0.05f;
                 }
             }
         }
@@ -894,7 +952,7 @@ namespace J0kerMenu_GTAG.Menu
                     {
                         1,
                         false,
-                        100f
+                        1000f
                     });
                     Flush();
                 }
@@ -913,7 +971,7 @@ namespace J0kerMenu_GTAG.Menu
                     {
                         84,
                         false,
-                        100f
+                        1000f
                     });
                     Flush();
                 }
@@ -932,7 +990,7 @@ namespace J0kerMenu_GTAG.Menu
                     {
                         86,
                         false,
-                        100f
+                        1000f
                     });
                     Flush();
                 }
@@ -951,7 +1009,7 @@ namespace J0kerMenu_GTAG.Menu
                     {
                         Random.Range(1, 360),
                         false,
-                        100f
+                        1000f
                     });
                     Flush();
                 }
@@ -979,17 +1037,22 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void BracletSpammer()
         {
-            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
+            if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetMouseButton(0))
             {
                 if (Time.time > BracletDelay)
                 {
                     BracletDelay = Time.time + 0.1f;
+                    GorillaTagger.Instance.myVRRig.SendRPC("EnableNonCosmeticHandItemRPC", RpcTarget.All, new object[] { Enable = !Enable, false });
+                    Flush();
+                }
+            }
 
-                    GorillaTagger.Instance.myVRRig.SendRPC("EnableNonCosmeticHandItemRPC", RpcTarget.All, new object[]
-                    {
-                        Enable = !Enable,
-                        false
-                    });
+            if (ControllerInputPoller.instance.leftControllerGripFloat > 0.1f || UnityInput.Current.GetMouseButton(1))
+            {
+                if (Time.time > BracletDelay)
+                {
+                    BracletDelay = Time.time + 0.1f;
+                    GorillaTagger.Instance.myVRRig.SendRPC("EnableNonCosmeticHandItemRPC", RpcTarget.All, new object[] { Enable = !Enable, true });
                     Flush();
                 }
             }
@@ -997,56 +1060,27 @@ namespace J0kerMenu_GTAG.Menu
 
         public static void BracletAdd()
         {
-            GorillaTagger.Instance.myVRRig.SendRPC("EnableNonCosmeticHandItemRPC", RpcTarget.All, new object[]
-            {
-                true,
-                false
-            });
+            GorillaTagger.Instance.myVRRig.SendRPC("EnableNonCosmeticHandItemRPC", RpcTarget.All, new object[] { true, false });
+
+            GorillaTagger.Instance.myVRRig.SendRPC("EnableNonCosmeticHandItemRPC", RpcTarget.All, new object[] { true, true });
         }
 
         public static void BracletRemove()
         {
-            GorillaTagger.Instance.myVRRig.SendRPC("EnableNonCosmeticHandItemRPC", RpcTarget.All, new object[]
-            {
-                false,
-                false
-            });
+            GorillaTagger.Instance.myVRRig.SendRPC("EnableNonCosmeticHandItemRPC", RpcTarget.All, new object[] { false, false });
+
+            GorillaTagger.Instance.myVRRig.SendRPC("EnableNonCosmeticHandItemRPC", RpcTarget.All, new object[] { false, true });
         }
 
         public static void LeaveParty()
         {
-            if (FriendshipGroupDetection.Instance.IsInParty)
-            {
-                FriendshipGroupDetection.Instance.LeaveParty();
-            }
+            if (FriendshipGroupDetection.Instance.IsInParty) FriendshipGroupDetection.Instance.LeaveParty();
         }
 
         #endregion
 
         #region City
-        static float FortuneDelay;
-        static float DoorDelay;
-        static float CosmeticDelay;
-
-        public static void FortuneTellerSpammer()
-        {
-            if (PhotonNetwork.IsMasterClient)
-            {
-                if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
-                {
-                    if (Time.time > FortuneDelay)
-                    {
-                        FortuneDelay = Time.time + 0.1f;
-                        FortuneTeller fortuneTeller = FindObjectOfType<FortuneTeller>();
-                        if (fortuneTeller != null)
-                        {
-                            fortuneTeller.photonView.RPC("TriggerAttractAnimRPC", RpcTarget.All, System.Array.Empty<object>());
-                            Flush();
-                        }
-                    }
-                }
-            }
-        }
+        static float FortuneDelay, DoorDelay, CosmeticDelay;
 
         public static void DoorSpammer()
         {
@@ -1063,6 +1097,25 @@ namespace J0kerMenu_GTAG.Menu
                             GTDoor.DoorState.Opening
                         });
                         Flush();
+                    }
+                }
+            }
+        }
+        public static void FortuneTellerSpammer()
+        {
+            if (PhotonNetwork.IsMasterClient)
+            {
+                if (ControllerInputPoller.instance.rightControllerGripFloat > 0.1f || UnityInput.Current.GetKey(KeyCode.G))
+                {
+                    if (Time.time > FortuneDelay)
+                    {
+                        FortuneDelay = Time.time + 0.1f;
+                        FortuneTeller fortuneTeller = FindObjectOfType<FortuneTeller>();
+                        if (fortuneTeller != null)
+                        {
+                            fortuneTeller.photonView.RPC("TriggerAttractAnimRPC", RpcTarget.All, System.Array.Empty<object>());
+                            Flush();
+                        }
                     }
                 }
             }
@@ -1107,7 +1160,8 @@ namespace J0kerMenu_GTAG.Menu
         #endregion
 
         #region Safty
-        static float distanceToLeave = 0.35f;
+        static float distanceToLeave = 0.35f, distanceToFling = 0.75f;
+        public static bool playedReportSound;
 
         public static void Flush()
         {
@@ -1122,22 +1176,21 @@ namespace J0kerMenu_GTAG.Menu
                 PhotonNetwork.OpCleanRpcBuffer(GorillaTagger.Instance.myVRRig.GetView);
             }
 
-            GorillaNot.instance.rpcErrorMax = 999;
-            GorillaNot.instance.rpcCallLimit = 999;
-            GorillaNot.instance.logErrorMax = 999;
+            GorillaNot.instance.rpcErrorMax = int.MaxValue;
+            GorillaNot.instance.rpcCallLimit = int.MaxValue;
+            GorillaNot.instance.logErrorMax = int.MaxValue;
 
-            PhotonNetwork.RemoveRPCsInGroup(999);
+            PhotonNetwork.RemoveRPCsInGroup(int.MaxValue);
             GorillaNot.instance.OnPlayerLeftRoom(PhotonNetwork.LocalPlayer);
 
             PhotonNetwork.SendAllOutgoingCommands();
         }
 
-        public static void AntiReport()
+        public static void AntiReportLeave()
         {
             try
             {
                 PhotonNetwork.NetworkingClient.EventReceived += AntiReportEvent;
-
                 foreach (GorillaPlayerScoreboardLine scoreBoardLine in GorillaScoreboardTotalUpdater.allScoreboardLines)
                 {
                     if (scoreBoardLine.linePlayer == NetworkSystem.Instance.LocalPlayer)
@@ -1152,9 +1205,11 @@ namespace J0kerMenu_GTAG.Menu
 
                                 if (DistanceRight < distanceToLeave || DistanceLeft < distanceToLeave)
                                 {
-                                    if (!PhotonNetwork.CurrentRoom.CustomProperties.ToString().Contains("MODDED"))
+                                    PhotonNetwork.Disconnect();
+                                    if (!playedReportSound)
                                     {
-                                        PhotonNetwork.Disconnect();
+                                        GorillaTagger.Instance.offlineVRRig.PlayHandTapLocal(40, false, 1000f);
+                                        playedReportSound = true;
                                     }
                                 }
                             }
@@ -1165,14 +1220,70 @@ namespace J0kerMenu_GTAG.Menu
             catch { }
         }
 
-        static void AntiReportEvent(EventData data) // Idk If This Works
+        public static void AntiReportFling()
+        {
+            try
+            {
+                foreach (GorillaPlayerScoreboardLine scoreBoardLine in GorillaScoreboardTotalUpdater.allScoreboardLines)
+                {
+                    if (scoreBoardLine.linePlayer == NetworkSystem.Instance.LocalPlayer)
+                    {
+                        Transform reportButton = scoreBoardLine.reportButton.gameObject.transform;
+                        foreach (VRRig vrrig in GorillaParent.instance.vrrigs)
+                        {
+                            if (vrrig != GorillaTagger.Instance.offlineVRRig)
+                            {
+                                float DistanceRight = Vector3.Distance(vrrig.rightHandTransform.position, reportButton.position);
+                                float DistanceLeft = Vector3.Distance(vrrig.leftHandTransform.position, reportButton.position);
+
+                                if (DistanceRight < distanceToFling || DistanceLeft < distanceToFling)
+                                {
+                                    Vector3 Val = Vector3.forward * 999;
+                                    Vector3 Pos = reportButton.position;
+                                    Quaternion Rot = Quaternion.identity;
+
+                                    LaunchGrowingSnowBallProjectile("Player Objects/Local VRRig/Local Gorilla Player/RigAnchor/rig/body/shoulder.R/upper_arm.R/forearm.R/hand.R/palm.01.R/TransferrableItemRightHand/GrowingSnowballRightAnchor(Clone)", "LMACF. RIGHT.", Val, Pos, Rot, 5, true, true);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        static void AntiReportEvent(EventData data)
         {
             if (data.Code == 50)
             {
-                object[] array = (object[])data.CustomData;
-                if ((string)array[0] == PhotonNetwork.LocalPlayer.UserId)
+                if (data.CustomData is object[] array && array.Length > 0 && array[0] is string userId)
                 {
-                    PhotonNetwork.Disconnect();
+                    if (userId == PhotonNetwork.LocalPlayer.UserId)
+                    {
+                        PhotonNetwork.Disconnect();
+
+                        if (!playedReportSound)
+                        {
+                            GorillaTagger.Instance.offlineVRRig.PlayHandTapLocal(40, false, 1000f);
+                            playedReportSound = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        public static void AntiStaff()
+        {
+            foreach (VRRig rigs in GorillaParent.instance.vrrigs)
+            {
+                if (rigs != GorillaTagger.Instance.offlineVRRig)
+                {
+                    if (rigs.concatStringOfCosmeticsAllowed.Contains("LBAAD.") || rigs.concatStringOfCosmeticsAllowed.Contains("LBAAK."))
+                    {
+                        PhotonNetwork.Disconnect();
+
+                        GorillaTagger.Instance.offlineVRRig.PlayHandTapLocal(40, false, 1000f);
+                    }
                 }
             }
         }
@@ -1182,11 +1293,14 @@ namespace J0kerMenu_GTAG.Menu
         #region Projectiles 
 
         #region Throwable
+
         static GameObject gorillaVelocityEstimatorCustome;
         static GorillaVelocityEstimator scriptedGorillaVelEst;
+        private PhotonEvent snowballThrowEvent;
         static bool ObjMade;
         static float projectileDelay;
         static bool projModsEnabled = false;
+        static int changeSnowBall;
 
         public static void LaunchSnowBallProjectile(string Path, string Name, Vector3 velocity, Vector3 position, Quaternion rotation, Color color, bool RGB)
         {
@@ -1194,12 +1308,13 @@ namespace J0kerMenu_GTAG.Menu
             {
                 gorillaVelocityEstimatorCustome = new GameObject("GorillaVelocityEstimator (J0kerMenu)");
                 scriptedGorillaVelEst = gorillaVelocityEstimatorCustome.AddComponent<GorillaVelocityEstimator>();
+                ObjMade = true;
             }
 
             SnowballThrowable snowball = GameObject.Find(Path + "/").transform.Find(Name).GetComponent<SnowballThrowable>();
             if (!snowball.gameObject.activeSelf)
             {
-                snowball.EnableSnowballLocal(true);
+                snowball.SetSnowballActiveLocal(true);
                 if (RGB)
                 {
                     snowball.randomizeColor = true;
@@ -1214,7 +1329,7 @@ namespace J0kerMenu_GTAG.Menu
             }
             if (Time.time > projectileDelay)
             {
-                projectileDelay = Time.time + 0.2f; // Had to revert this =(
+                projectileDelay = Time.time + 0.2f;
 
                 Rigidbody gorillaRigidbody = GorillaTagger.Instance.GetComponent<Rigidbody>();
                 Vector3 originalVelocity = gorillaRigidbody.velocity;
@@ -1223,7 +1338,7 @@ namespace J0kerMenu_GTAG.Menu
                 gorillaRigidbody.velocity = velocity;
 
                 GorillaTagger.Instance.offlineVRRig.SetThrowableProjectileColor(true, color);
-                MethodInfo launchMethod = typeof(SnowballThrowable).GetMethod("LaunchSnowball", BindingFlags.NonPublic | BindingFlags.Instance);
+                MethodInfo launchMethod = typeof(SnowballThrowable).GetMethod("PerformSnowballThrowAuthority", BindingFlags.NonPublic | BindingFlags.Instance);
                 launchMethod.Invoke(snowball, null);
 
                 gorillaRigidbody.velocity = originalVelocity;
@@ -1231,19 +1346,76 @@ namespace J0kerMenu_GTAG.Menu
 
                 Flush();
             }
-            if (!ControllerInputPoller.instance.rightGrab)
+            if (!ControllerInputPoller.instance.rightGrab || UnityInput.Current.GetKeyUp(KeyCode.G))
             {
-                snowball.EnableSnowballLocal(false);
+                snowball.SetSnowballActiveLocal(false);
             }
         }
+
+        public static void LaunchGrowingSnowBallProjectile(string Path, string Name, Vector3 velocity, Vector3 position, Quaternion rotation, int Size, bool onGun, bool shouldFling)
+        {
+            if (!ObjMade)
+            {
+                gorillaVelocityEstimatorCustome = new GameObject("GorillaVelocityEstimator (J0kerMenu)");
+                scriptedGorillaVelEst = gorillaVelocityEstimatorCustome.AddComponent<GorillaVelocityEstimator>();
+                ObjMade = true;
+            }
+
+            GrowingSnowballThrowable snowball = GameObject.Find(Path + "/").transform.Find(Name).GetComponent<GrowingSnowballThrowable>();
+            if (!snowball.gameObject.activeSelf)
+            {
+                snowball.SetSnowballActiveLocal(true);
+                snowball.velocityEstimator = scriptedGorillaVelEst;
+                snowball.transform.position = position;
+                snowball.transform.rotation = rotation;
+                snowball.transform.localRotation = rotation;
+                snowball.IncreaseSize(5);
+            }
+
+            if (Time.time > projectileDelay)
+            {
+                projectileDelay = Time.time + 0.2f;
+
+                Rigidbody gorillaRigidbody = GorillaTagger.Instance.GetComponent<Rigidbody>();
+                Vector3 originalVelocity = gorillaRigidbody.velocity;
+                Vector3 originalPosition = snowball.transform.position;
+
+                gorillaRigidbody.velocity = velocity;
+
+                GorillaTagger.Instance.offlineVRRig.SetThrowableProjectileColor(true, Color.white);
+
+                MethodInfo launchMethod = typeof(GrowingSnowballThrowable).GetMethod("PerformSnowballThrowAuthority", BindingFlags.NonPublic | BindingFlags.Instance);
+                launchMethod.Invoke(snowball, null);
+
+                gorillaRigidbody.velocity = originalVelocity;
+                snowball.transform.position = originalPosition;
+
+                Flush();
+            }
+
+            if (!onGun)
+            {
+                if (!ControllerInputPoller.instance.rightGrab || UnityInput.Current.GetKeyUp(KeyCode.G))
+                {
+                    snowball.SetSnowballActiveLocal(false);
+                }
+            }
+
+            if (shouldFling)
+            {
+                var photonEvent = Traverse.Create(snowball).Field("snowballThrowEvent").GetValue<PhotonEvent>();
+                var args = new object[] { position, new Vector3(0f, -9999f, 0f), 5f };
+                photonEvent.RaiseOthers(args);
+            }
+        }
+    
 
         static void EnableAllProjs() // Auto enables if using projectiles
         {
             string[] projectilePaths = new string[]
             {
-                "Player Objects/Local VRRig/Local Gorilla Player/Holdables/SnowballRightAnchor(Clone)/LMACF. RIGHT.",
+                "Player Objects/Local VRRig/Local Gorilla Player/Holdables/GrowingSnowballRightAnchor(Clone)/LMACF. RIGHT.",
                 "Player Objects/Local VRRig/Local Gorilla Player/Holdables/WaterBalloonRightAnchor(Clone)/LMAEY. RIGHT.",
-                "Player Objects/Local VRRig/Local Gorilla Player/Holdables/LavaRockAnchor(Clone)/LMAGE. RIGHT.",
                 "Player Objects/Local VRRig/Local Gorilla Player/Holdables/TrickTreatFunctionalAnchorRIGHT Variant(Clone)/LMAMO. RIGHT.",
                 "Player Objects/Local VRRig/Local Gorilla Player/Holdables/AppleRightAnchor(Clone)/LMAMV.",
                 "Player Objects/Local VRRig/Local Gorilla Player/Holdables/ScienceCandyRightAnchor(Clone)/LMAIF. RIGHT.",
@@ -1254,9 +1426,8 @@ namespace J0kerMenu_GTAG.Menu
 
             string[] transferablePaths = new string[]
             {
-                "Player Objects/Local VRRig/Local Gorilla Player/RigAnchor/rig/body/shoulder.R/upper_arm.R/forearm.R/hand.R/palm.01.R/TransferrableItemRightHand/SnowballRightAnchor(Clone)/LMACF. RIGHT.",
+                "Player Objects/Local VRRig/Local Gorilla Player/RigAnchor/rig/body/shoulder.R/upper_arm.R/forearm.R/hand.R/palm.01.R/TransferrableItemRightHand/GrowingSnowballRightAnchor(Clone)/LMACF. RIGHT.",
                 "Player Objects/Local VRRig/Local Gorilla Player/RigAnchor/rig/body/shoulder.R/upper_arm.R/forearm.R/hand.R/palm.01.R/TransferrableItemRightHand/WaterBalloonRightAnchor(Clone)/LMAEY. RIGHT.",
-                "Player Objects/Local VRRig/Local Gorilla Player/RigAnchor/rig/body/shoulder.R/upper_arm.R/forearm.R/hand.R/palm.01.R/TransferrableItemRightHand/LavaRockAnchor(Clone)/LMAGE. RIGHT.",
                 "Player Objects/Local VRRig/Local Gorilla Player/RigAnchor/rig/body/shoulder.R/upper_arm.R/forearm.R/hand.R/palm.01.R/TransferrableItemRightHand/TrickTreatFunctionalAnchorRIGHT Variant(Clone)/LMAMO. RIGHT.",
                 "Player Objects/Local VRRig/Local Gorilla Player/RigAnchor/rig/body/shoulder.R/upper_arm.R/forearm.R/hand.R/palm.01.R/TransferrableItemRightHand/AppleRightAnchor(Clone)/LMAMV.",
                 "Player Objects/Local VRRig/Local Gorilla Player/RigAnchor/rig/body/shoulder.R/upper_arm.R/forearm.R/hand.R/palm.01.R/TransferrableItemRightHand/ScienceCandyRightAnchor(Clone)/LMAIF. RIGHT.",
@@ -1286,11 +1457,11 @@ namespace J0kerMenu_GTAG.Menu
             {
                 if (projModsEnabled)
                 {
-                    Vector3 Val = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 8.33f;
+                    Vector3 Val = -GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 15.33f;
                     Vector3 Pos = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.position;
                     Quaternion Rot = GorillaTagger.Instance.offlineVRRig.rightHandTransform.rotation;
 
-                    LaunchSnowBallProjectile("Player Objects/Local VRRig/Local Gorilla Player/RigAnchor/rig/body/shoulder.R/upper_arm.R/forearm.R/hand.R/palm.01.R/TransferrableItemRightHand/SnowballRightAnchor(Clone)", "LMACF. RIGHT.", Val, Pos, Rot, Color.white, false);
+                    LaunchGrowingSnowBallProjectile("Player Objects/Local VRRig/Local Gorilla Player/RigAnchor/rig/body/shoulder.R/upper_arm.R/forearm.R/hand.R/palm.01.R/TransferrableItemRightHand/GrowingSnowballRightAnchor(Clone)", "LMACF. RIGHT.", Val, Pos, Rot, 999, false, false);
                 }
                 else
                 {
@@ -1305,7 +1476,7 @@ namespace J0kerMenu_GTAG.Menu
             {
                 if (projModsEnabled)
                 {
-                    Vector3 Val = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 8.33f;
+                    Vector3 Val = -GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 15.33f;
                     Vector3 Pos = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.position;
                     Quaternion Rot = GorillaTagger.Instance.offlineVRRig.rightHandTransform.rotation;
 
@@ -1324,7 +1495,7 @@ namespace J0kerMenu_GTAG.Menu
             {
                 if (projModsEnabled)
                 {
-                    Vector3 Val = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 8.33f;
+                    Vector3 Val = -GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 15.33f;
                     Vector3 Pos = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.position;
                     Quaternion Rot = GorillaTagger.Instance.offlineVRRig.rightHandTransform.rotation;
 
@@ -1343,7 +1514,7 @@ namespace J0kerMenu_GTAG.Menu
             {
                 if (projModsEnabled)
                 {
-                    Vector3 Val = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 8.33f;
+                    Vector3 Val = -GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 15.33f;
                     Vector3 Pos = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.position;
                     Quaternion Rot = GorillaTagger.Instance.offlineVRRig.rightHandTransform.rotation;
 
@@ -1362,7 +1533,7 @@ namespace J0kerMenu_GTAG.Menu
             {
                 if (projModsEnabled)
                 {
-                    Vector3 Val = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 8.33f;
+                    Vector3 Val = -GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 15.33f;
                     Vector3 Pos = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.position;
                     Quaternion Rot = GorillaTagger.Instance.offlineVRRig.rightHandTransform.rotation;
 
@@ -1381,7 +1552,7 @@ namespace J0kerMenu_GTAG.Menu
             {
                 if (projModsEnabled)
                 {
-                    Vector3 Val = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 8.33f;
+                    Vector3 Val = -GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 15.33f;
                     Vector3 Pos = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.position;
                     Quaternion Rot = GorillaTagger.Instance.offlineVRRig.rightHandTransform.rotation;
 
@@ -1400,7 +1571,7 @@ namespace J0kerMenu_GTAG.Menu
             {
                 if (projModsEnabled)
                 {
-                    Vector3 Val = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 8.33f;
+                    Vector3 Val = -GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 15.33f;
                     Vector3 Pos = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.position;
                     Quaternion Rot = GorillaTagger.Instance.offlineVRRig.rightHandTransform.rotation;
 
@@ -1419,7 +1590,7 @@ namespace J0kerMenu_GTAG.Menu
             {
                 if (projModsEnabled)
                 {
-                    Vector3 Val = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 8.33f;
+                    Vector3 Val = -GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 15.33f;
                     Vector3 Pos = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.position;
                     Quaternion Rot = GorillaTagger.Instance.offlineVRRig.rightHandTransform.rotation;
 
@@ -1438,7 +1609,7 @@ namespace J0kerMenu_GTAG.Menu
             {
                 if (projModsEnabled)
                 {
-                    Vector3 Val = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 8.33f;
+                    Vector3 Val = -GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.up * 15.33f;
                     Vector3 Pos = GorillaTagger.Instance.offlineVRRig.rightHandTransform.transform.position;
                     Quaternion Rot = GorillaTagger.Instance.offlineVRRig.rightHandTransform.rotation;
 
@@ -1449,6 +1620,11 @@ namespace J0kerMenu_GTAG.Menu
                     EnableAllProjs();
                 }
             }
+        }
+
+        public static void BigSnowBalls()
+        {
+            changeSnowBall = (changeSnowBall + 1) % 6;
         }
         #endregion
 
@@ -1579,6 +1755,9 @@ namespace J0kerMenu_GTAG.Menu
         #endregion
 
         #region Server
+        public static float rejoinAfterKickDelay;
+        public static string lastRoomName;
+
         public static void ViewAllDates()
         {
             List<VRRig> vrRigs = GorillaParent.instance.vrrigs;
@@ -1706,6 +1885,11 @@ namespace J0kerMenu_GTAG.Menu
             File.AppendAllText("J0ker Menu/RPC Info.txt", text);
         }
 
+        public static void Reconnect()
+        {
+            lastRoomName = PhotonNetwork.CurrentRoom.Name;
+            PhotonNetwork.Disconnect();
+        }
         #endregion
 
         #region GameMode
@@ -1761,6 +1945,10 @@ namespace J0kerMenu_GTAG.Menu
                     {
                         GorillaTagger.Instance.offlineVRRig.enabled = true;
                     }
+                }
+                else
+                {
+                    GorillaTagger.Instance.offlineVRRig.enabled = true;
                 }
             }
         }
@@ -2338,7 +2526,6 @@ namespace J0kerMenu_GTAG.Menu
 
         #region Ropes
         static float RopeDelay;
-        static bool shouldDoFastRopes;
 
         static void RopeLaunch(Vector3 velocity)
         {
@@ -2350,7 +2537,7 @@ namespace J0kerMenu_GTAG.Menu
 
                     foreach (GorillaRopeSwing ropeSwing in Object.FindObjectsOfType(typeof(GorillaRopeSwing)))
                     {
-                        RopeSwingManager.instance.photonView.RPC("SetVelocity", RpcTarget.All, new object[] 
+                        RopeSwingManager.instance.photonView.RPC("SetVelocity", RpcTarget.All, new object[]
                         {
                             ropeSwing.ropeId,
                             1,
@@ -2380,24 +2567,204 @@ namespace J0kerMenu_GTAG.Menu
             RopeLaunch(Spaz);
         }
 
-        public static void FastRopes()
+        public static void RopeGun()
         {
-            shouldDoFastRopes = !shouldDoFastRopes;
-            foreach (GorillaRopeSwingSettings ropeSwing in GameObject.FindObjectsOfType(typeof(GorillaRopeSwingSettings)))
+            if (ControllerInputPoller.instance.rightGrab || Mouse.current.rightButton.isPressed)
             {
-                if (ropeSwing.name.Contains("Default"))
+                Physics.Raycast(GorillaLocomotion.Player.Instance.rightControllerTransform.position, -GorillaLocomotion.Player.Instance.rightControllerTransform.up, out var hitinfo);
+
+                if (Mouse.current.rightButton.isPressed)
                 {
-                    if (shouldDoFastRopes)
+                    Camera cam = GameObject.Find("Shoulder Camera").GetComponent<Camera>();
+                    Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+                    Physics.Raycast(ray, out hitinfo, 100);
+                }
+
+                GunSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                GunSphere.transform.position = hitinfo.point;
+                GunSphere.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+                GunSphere.GetComponent<Renderer>().material.shader = Shader.Find("GorillaTag/UberShader");
+                GunSphere.GetComponent<Renderer>().material.color = Color.white;
+                GameObject.Destroy(GunSphere.GetComponent<BoxCollider>());
+                GameObject.Destroy(GunSphere.GetComponent<Rigidbody>());
+                GameObject.Destroy(GunSphere.GetComponent<Collider>());
+
+                GorillaRopeSwing ropeSwing = hitinfo.collider.GetComponentInParent<GorillaRopeSwing>();
+                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || Mouse.current.leftButton.isPressed)
+                {
+                    GameObject.Destroy(GunSphere, Time.deltaTime);
+                    GunSphere.GetComponent<Renderer>().material.color = GorillaTagger.Instance.offlineVRRig.playerColor;
+
+                    if (ropeSwing && Time.time > RopeDelay)
                     {
-                        ropeSwing.inheritVelocityMultiplier = 4f;
-                    }
-                    else
-                    {
-                        ropeSwing.inheritVelocityMultiplier = 0.9f;
+                        RopeDelay = Time.time + 0.25f;
+                        RopeSwingManager.instance.photonView.RPC("SetVelocity", RpcTarget.All, new object[] { ropeSwing.ropeId, 1, new Vector3(UnityEngine.Random.Range(-50f, 50f), UnityEngine.Random.Range(-50f, 50f), UnityEngine.Random.Range(-50f, 50f)), true, null });
+
+                        Flush();
                     }
                 }
             }
+            if (GunSphere != null)
+            {
+                GameObject.Destroy(GunSphere, Time.deltaTime);
+            }
         }
+        #endregion
+
+        #region OP
+        public static float partyKickDelay, flingAllDelay;
+
+        public static void GroupKickAll()
+        {
+            if (!PhotonNetwork.CurrentRoom.IsVisible)
+            {
+                GorillaComputer.instance.friendJoinCollider.playerIDsCurrentlyTouching.Remove(PhotonNetwork.LocalPlayer.UserId);
+                GorillaComputer.instance.OnGroupJoinButtonPress(0, GorillaComputer.instance.friendJoinCollider);
+                Reconnect();
+            }
+        }
+
+        public static void PartyKickAll()
+        {
+            PhotonNetworkController.Instance.AttemptToJoinSpecificRoom("J0kerModZ>>Kicked>>You", JoinType.ForceJoinWithParty);
+        }
+
+        public static void BlockLagAll()
+        {
+            if (ControllerInputPoller.instance.rightGrab || UnityInput.Current.GetKey(KeyCode.G))
+            {
+                if (Time.time > BlockDelay)
+                {
+                    BlockDelay = Time.time + 0.05f;
+
+                    for (int i = 0; i < 15; i++)
+                    {
+                        BuilderTable.instance.RequestCreatePiece(1700948013, GorillaTagger.Instance.offlineVRRig.headConstraint.transform.position, Quaternion.identity, 0);
+                    }
+
+                    BuilderTable.instance.ClearTable();
+
+                    GorillaTagger.Instance.offlineVRRig.enabled = false;
+                    GorillaTagger.Instance.offlineVRRig.transform.position = new Vector3(-124.1707f, 16.6173f, -226.5921f);
+                    BuilderPiecePatch.enabled = true;
+                    Flush();
+                }
+            }
+            else
+            {
+                GorillaTagger.Instance.offlineVRRig.enabled = true;
+            }
+        }
+
+        public static void FlingGun()
+        {
+            if (ControllerInputPoller.instance.rightGrab || Mouse.current.rightButton.isPressed)
+            {
+                Physics.Raycast(GorillaLocomotion.Player.Instance.rightControllerTransform.position, -GorillaLocomotion.Player.Instance.rightControllerTransform.up, out var hitinfo);
+
+                if (Mouse.current.rightButton.isPressed)
+                {
+                    Camera cam = GameObject.Find("Shoulder Camera").GetComponent<Camera>();
+                    Ray ray = cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+                    Physics.Raycast(ray, out hitinfo, 100);
+                }
+
+                GunSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                GunSphere.transform.position = hitinfo.point;
+                GunSphere.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+                GunSphere.GetComponent<Renderer>().material.shader = Shader.Find("GorillaTag/UberShader");
+                GunSphere.GetComponent<Renderer>().material.color = Color.white;
+                GameObject.Destroy(GunSphere.GetComponent<BoxCollider>());
+                GameObject.Destroy(GunSphere.GetComponent<Rigidbody>());
+                GameObject.Destroy(GunSphere.GetComponent<Collider>());
+                VRRig rig = hitinfo.collider.GetComponentInParent<VRRig>();
+
+                if (ControllerInputPoller.instance.rightControllerIndexFloat > 0.1f || Mouse.current.leftButton.isPressed)
+                {
+                    if (lockedTarget == null && rig != null)
+                    {
+                        lockedTarget = rig;
+                    }
+
+                    if (lockedTarget != null)
+                    {
+                        GunSphere.GetComponent<Renderer>().material.shader = Shader.Find("GorillaTag/UberShader");
+                        GunSphere.GetComponent<Renderer>().material.color = GorillaTagger.Instance.offlineVRRig.playerColor;
+                        GunSphere.transform.position = lockedTarget.transform.position;
+                    }
+                    else
+                    {
+                        Destroy(GunSphere, Time.deltaTime);
+                    }
+
+                    if (projModsEnabled)
+                    {
+
+                        GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                        cube.transform.position = lockedTarget.transform.position - new Vector3(0f, 0.6f, 0f);
+                        cube.transform.localScale = new Vector3(2f, 0.1f, 2f);
+                        Destroy(cube, Time.deltaTime);
+
+                        GunSphere.GetComponent<Renderer>().material.shader = Shader.Find("GorillaTag/UberShader");
+                        GunSphere.GetComponent<Renderer>().material.color = Color.white;
+
+                        Vector3 Val = Vector3.down * 999;
+                        Vector3 Pos = lockedTarget != null ? lockedTarget.headConstraint.transform.position + new Vector3(0f, 0.1f, 0f) : Vector3.zero;
+                        Quaternion Rot = Quaternion.identity;
+
+                        LaunchGrowingSnowBallProjectile("Player Objects/Local VRRig/Local Gorilla Player/RigAnchor/rig/body/shoulder.R/upper_arm.R/forearm.R/hand.R/palm.01.R/TransferrableItemRightHand/GrowingSnowballRightAnchor(Clone)", "LMACF. RIGHT.", Val, Pos, Rot, 5, true, true);
+                    }
+                    else
+                    {
+                        EnableAllProjs();
+                    }
+                }
+                else
+                {
+                    lockedTarget = null;
+                }
+            }
+            if (GunSphere != null)
+            {
+                GameObject.Destroy(GunSphere, Time.deltaTime);
+            }
+        }
+
+        public static void FlingAllSnowBall()
+        {
+            if (ControllerInputPoller.instance.rightGrab)
+            {
+                foreach (VRRig rRig in GorillaParent.instance.vrrigs)
+                {
+                    if (rRig != GorillaTagger.Instance.offlineVRRig)
+                    {
+                        GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                        cube.transform.position = rRig.transform.position - new Vector3(0f, 0.6f, 0f);
+                        cube.transform.localScale = new Vector3(1f, 0.1f, 1f);
+                        Destroy(cube, Time.deltaTime);
+                    }
+                }
+
+                VRRig randomRig = GorillaParent.instance.vrrigs[Random.Range(0, GorillaParent.instance.vrrigs.Count)];
+
+                if (projModsEnabled)
+                {
+                    if (randomRig != GorillaTagger.Instance.offlineVRRig)
+                    {
+                        Vector3 Val = Vector3.down * 999f;
+                        Vector3 Pos = randomRig.headConstraint.position;
+                        Quaternion Rot = Quaternion.identity;
+
+                        LaunchGrowingSnowBallProjectile("Player Objects/Local VRRig/Local Gorilla Player/RigAnchor/rig/body/shoulder.R/upper_arm.R/forearm.R/hand.R/palm.01.R/TransferrableItemRightHand/GrowingSnowballRightAnchor(Clone)", "LMACF. RIGHT.", Val, Pos, Rot, 5, false, true);
+                    }
+                }
+                else
+                {
+                    EnableAllProjs();
+                }
+            }
+        }
+
         #endregion
     }
 }
